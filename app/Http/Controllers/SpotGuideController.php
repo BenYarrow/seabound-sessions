@@ -201,7 +201,7 @@ class SpotGuideController extends Controller
                         'kph_wind' => $r->kph_wind,
                         'kph_gust' => $r->kph_gust,
                         'rain_mm' => $r->rain_mm,
-                        'rainy_days' => $r->rainy_days,
+                        'wet_days' => $r->wet_days,
                     ])->toArray())
                     ->toArray(),
             ],

@@ -1,7 +1,8 @@
 <?php
 
 // Rainfall on the monthly climate layer: the month's total precipitation and
-// its count of rainy days (daily total >= 1 mm). Nullable because rows fetched
+// its count of wet days (3 mm+ within the 9am–7pm sailing window — see
+// WeatherFetcher::WET_DAY_SAILING_MM). Nullable because rows fetched
 // before this column existed have no rain data until the next weather fetch
 // replaces them — null means "not fetched", never "no rain".
 
@@ -16,14 +17,14 @@ return new class extends Migration
         Schema::table('weather_records', function (Blueprint $table) {
             // decimal(6,1): up to 99,999.9 mm — comfortably above any monthly total on record.
             $table->decimal('rain_mm', 6, 1)->nullable()->after('kph_gust');
-            $table->unsignedTinyInteger('rainy_days')->nullable()->after('rain_mm');
+            $table->unsignedTinyInteger('wet_days')->nullable()->after('rain_mm');
         });
     }
 
     public function down(): void
     {
         Schema::table('weather_records', function (Blueprint $table) {
-            $table->dropColumn(['rain_mm', 'rainy_days']);
+            $table->dropColumn(['rain_mm', 'wet_days']);
         });
     }
 };

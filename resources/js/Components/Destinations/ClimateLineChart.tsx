@@ -1,7 +1,7 @@
 // resources/js/Components/Destinations/ClimateLineChart.tsx
 //
 // Line chart comparing one typical-year climate metric across the active
-// destinations (or countries/continents) — used for temperature and for rainy
+// destinations (or countries/continents) — used for temperature and for wet
 // days. No unit or gust control: neither metric has one. Wind has its own
 // chart (AllDestinationsWindChart) because of its wind/gust toggle and units.
 

@@ -177,7 +177,7 @@ All work happens within this repo (or one of its git worktrees). Do **not** read
 - `spot_guide_id` (FK), `year` (smallint), `month` (tinyint)
 - `avg_temp`, `kts_wind`, `kts_gust` (decimal:5,1)
 - `mph_wind`, `mph_gust`, `kph_wind`, `kph_gust` (smallint)
-- `rain_mm` (decimal:6,1, nullable) — month's total precipitation; `rainy_days` (tinyint, nullable) — days with a whole-day total ≥ 1 mm (WMO rain day). Null = not yet fetched (rows predating rainfall), never "dry"; averaged over known years only
+- `rain_mm` (decimal:6,1, nullable) — month's total precipitation; `wet_days` (tinyint, nullable) — days with ≥ 3 mm falling 9am–7pm (`WeatherFetcher::WET_DAY_SAILING_MM`; the 1 mm WMO rain day counted passing showers and tropical drizzle several times over). Null = not yet fetched (rows predating rainfall), never "dry"; averaged over known years only
 - Unique constraint: `(spot_guide_id, year, month)`
 
 **`spot_sailable_days`**
@@ -300,7 +300,7 @@ All work happens within this repo (or one of its git worktrees). Do **not** read
 - **`DestinationFilterBar.tsx`** — sticky top-of-page filter bar (Month / Group by continent·country·global / Spots / Unit / Min wind), URL-synced via `history.replaceState`; superseded `FilterDataset.tsx` (deleted)
 - **`SailableDaysChart.tsx`** — grouped bar chart, one series per selected spot, y = typical (coverage-normalised) sailable days per month, selected month marked
 - **`AllDestinationsWindChart.tsx`** — Recharts LineChart of the typical-year `climate` wind curve across destinations; unit is display-only (the filter bar is now the single unit control), gust/wind toggle is local chart state
-- **`ClimateLineChart.tsx`** — generic Recharts LineChart of one typical-year `climate` metric across destinations (renamed from `AllDestinationsTempChart`); rendered twice on `/destinations` — temperature (`avgTemp`) and rainy days (`rainyDays`)
+- **`ClimateLineChart.tsx`** — generic Recharts LineChart of one typical-year `climate` metric across destinations (renamed from `AllDestinationsTempChart`); rendered twice on `/destinations` — temperature (`avgTemp`) and wet days (`wetDays`)
 
 ### Content
 - **`ContentBuilder.tsx`** — routes content_blocks array to specific components

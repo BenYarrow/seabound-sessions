@@ -3,10 +3,11 @@
 //
 // Rainfall on the monthly climate layer: WeatherFetcher asks Open-Meteo for
 // hourly precipitation alongside wind/temp and rolls it into a month's total
-// (`rain_mm`) and its count of rainy days (`rainy_days`, daily total >= 1 mm —
-// the WMO "rain day" threshold). Unlike wind, rain counts the WHOLE day, not
-// just the 9am-7pm sailing window: a night-time downpour still makes it a wet
-// day for someone planning a trip.
+// (`rain_mm`, whole day) and its count of WET days (`wet_days`: at least 3 mm
+// falling within the 9am-7pm sailing window). The wet-day rule deliberately
+// ignores the 1 mm meteorological "rain day": that counts passing showers and
+// the reanalysis's tropical drizzle, which made spots like Le Morne look wet
+// on ~24 days of January. A wet day is one the rain would actually spoil.
 
 namespace Tests\Feature;
 
@@ -81,26 +82,28 @@ class WeatherFetcherRainfallTest extends TestCase
         Http::assertSent(fn (Request $request) => str_contains($request['hourly'], 'precipitation'));
     }
 
-    public function test_it_stores_the_monthly_rain_total_and_rainy_day_count(): void
+    public function test_it_stores_the_monthly_rain_total_and_wet_day_count(): void
     {
         Sleep::fake();
         $month = now()->subMonths(6)->startOfMonth();
 
         $this->fakeArchive($this->monthReadings($month, [
-            // Day 1: 3.0 mm in the sailing window -> rainy.
-            1 => [['12:00', 3.0]],
-            // Day 2: 0.6 + 0.6 mm = 1.2 mm, one hour outside the window -> still rainy (whole day counts).
-            2 => [['03:00', 0.6], ['14:00', 0.6]],
-            // Day 3: 0.4 mm -> a trace, below the 1 mm threshold -> not rainy.
-            3 => [['12:00', 0.4]],
+            // Day 1: 4.0 mm at midday -> wet (>= 3 mm in the sailing window).
+            1 => [['12:00', 4.0]],
+            // Day 2: 1.5 + 1.5 mm, both in the window -> 3.0 mm -> wet (threshold is inclusive).
+            2 => [['11:00', 1.5], ['15:00', 1.5]],
+            // Day 3: a 2.0 mm shower -> not wet; a passing shower doesn't spoil a day.
+            3 => [['12:00', 2.0]],
+            // Day 4: 10 mm overnight, dry sailing hours -> not wet, but it still counts in the month's total.
+            4 => [['03:00', 10.0]],
         ]));
 
         $spot = SpotGuide::factory()->create(['latitude' => 38.7, 'longitude' => 20.6]);
         app(WeatherFetcher::class)->fetchForSpot($spot);
 
         $record = $spot->weatherRecords()->where('year', $month->year)->where('month', $month->month)->sole();
-        $this->assertSame('4.6', (string) $record->rain_mm);
-        $this->assertSame(2, $record->rainy_days);
+        $this->assertSame('19.0', (string) $record->rain_mm);
+        $this->assertSame(2, $record->wet_days);
     }
 
     public function test_rain_is_left_null_when_the_archive_returns_no_precipitation(): void
@@ -115,6 +118,6 @@ class WeatherFetcherRainfallTest extends TestCase
         // The wind/temp row is still written — rain is additive, never a reason to drop a month.
         $record = $spot->weatherRecords()->where('year', $month->year)->where('month', $month->month)->sole();
         $this->assertNull($record->rain_mm);
-        $this->assertNull($record->rainy_days);
+        $this->assertNull($record->wet_days);
     }
 }

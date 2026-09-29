@@ -65,12 +65,12 @@ export const groupRankedSpots = (
 }
 
 /** Numeric fields of a climate month that get averaged across a group. */
-const CLIMATE_FIELDS: Exclude<keyof ClimateMonth, 'month' | 'rainMm' | 'rainyDays'>[] = [
+const CLIMATE_FIELDS: Exclude<keyof ClimateMonth, 'month' | 'rainMm' | 'wetDays'>[] = [
     'avgTemp', 'ktsWind', 'ktsGust', 'mphWind', 'mphGust', 'kphWind', 'kphGust',
 ]
 
 /** Optional rainfall fields, averaged over only the members that hold them. */
-const RAIN_FIELDS: ('rainMm' | 'rainyDays')[] = ['rainMm', 'rainyDays']
+const RAIN_FIELDS: ('rainMm' | 'wetDays')[] = ['rainMm', 'wetDays']
 
 /**
  * Build a climate dataset keyed by group label from the active spots, each

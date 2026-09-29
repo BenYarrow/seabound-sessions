@@ -1,7 +1,7 @@
 <?php
 
 // One month of climate averages for a spot guide (temp + wind/gust in kts, mph,
-// kph, plus rainfall: total mm and rainy-day count, null until fetched). Unique per (spot_guide_id, year, month). Feeds the destination charts.
+// kph, plus rainfall: total mm and wet-day count, null until fetched). Unique per (spot_guide_id, year, month). Feeds the destination charts.
 
 namespace App\Models;
 
@@ -17,7 +17,7 @@ class WeatherRecord extends Model
         'spot_guide_id', 'year', 'month',
         'avg_temp', 'kts_wind', 'kts_gust',
         'mph_wind', 'mph_gust', 'kph_wind', 'kph_gust',
-        'rain_mm', 'rainy_days',
+        'rain_mm', 'wet_days',
     ];
 
     protected $casts = [
@@ -25,7 +25,7 @@ class WeatherRecord extends Model
         'kts_wind' => 'decimal:1',
         'kts_gust' => 'decimal:1',
         'rain_mm' => 'decimal:1',
-        'rainy_days' => 'integer',
+        'wet_days' => 'integer',
     ];
 
     private const MONTH_NAMES = [

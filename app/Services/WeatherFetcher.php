@@ -2,7 +2,7 @@
 
 // Shared Open-Meteo fetch service. Pulls 3 years of hourly archive data for a
 // spot guide, reduces it to monthly averages (temperature / wind / gust) over
-// the 9am–7pm sailing window plus whole-day rainfall (monthly mm + rainy days), and writes WeatherRecord rows for only the
+// the 9am–7pm sailing window plus rainfall (whole-day monthly mm + sailing-hours wet days), and writes WeatherRecord rows for only the
 // complete, fully-elapsed calendar months — a spot's climate rows are deleted
 // and reinserted wholesale on each fetch (not upserted), which is what lets a
 // stale or out-of-window row self-heal on the next run. Single source of
@@ -21,8 +21,14 @@ use Illuminate\Support\Sleep;
 
 class WeatherFetcher
 {
-    /** Minimum daily precipitation (mm) for a day to count as rainy — the WMO rain-day threshold. */
-    public const RAINY_DAY_MM = 1.0;
+    /**
+     * Rain (mm) falling within the 9am–7pm sailing window that makes a day
+     * "wet" — enough to spoil it, not a passing shower. Chosen over the 1 mm
+     * meteorological rain day, which counted drizzle and the reanalysis's
+     * light tropical rain so generously that Le Morne read ~24 wet days in
+     * January (3 mm in-window gives ~14, and ~2 in its dry season).
+     */
+    public const WET_DAY_SAILING_MM = 3.0;
 
     /**
      * Fetch and aggregate monthly weather averages for one spot, then replace
@@ -116,14 +122,21 @@ class WeatherFetcher
             }
             $seenTimestamps[$datetime] = true;
 
-            // Rain is bucketed BEFORE the sailing-window filter: a downpour at
-            // 3am still makes it a wet day for someone planning a trip, so
-            // rainfall covers the whole day while wind/temp stay 9am–7pm.
+            $hour = (int) substr($datetime, 11, 2);
+
+            // Rain is bucketed BEFORE the sailing-window filter below, keeping two
+            // totals: the whole day (feeds the month's mm, the usual climate
+            // figure) and the 9am–7pm window (decides a wet day — overnight rain
+            // doesn't spoil a session, rain while you'd be on the water does).
             if (isset($precipitation[$index]) && $precipitation[$index] !== null) {
-                $dailyRain[substr($datetime, 0, 10)] = ($dailyRain[substr($datetime, 0, 10)] ?? 0.0) + $precipitation[$index];
+                $rainDate = substr($datetime, 0, 10);
+                $dailyRain[$rainDate] ??= ['total' => 0.0, 'sailing' => 0.0];
+                $dailyRain[$rainDate]['total'] += $precipitation[$index];
+                if ($hour >= 9 && $hour <= 19) {
+                    $dailyRain[$rainDate]['sailing'] += $precipitation[$index];
+                }
             }
 
-            $hour = (int) substr($datetime, 11, 2);
             if ($hour < 9 || $hour > 19) {
                 continue;
             }
@@ -220,11 +233,10 @@ class WeatherFetcher
 
             // Rain is additive: a month with no precipitation readings keeps its
             // wind/temp row and stores null ("not fetched"), never a fabricated
-            // 0 mm. A rainy day is a daily total of at least 1 mm — the WMO
-            // "rain day" threshold, which ignores drizzle and model noise.
+            // 0 mm. A wet day is WET_DAY_SAILING_MM+ within sailing hours.
             $hasRain = $row['rain'] !== [];
-            $rainMm = $hasRain ? round(array_sum($row['rain']), 1) : null;
-            $rainyDays = $hasRain ? count(array_filter($row['rain'], fn (float $dayTotal) => $dayTotal >= self::RAINY_DAY_MM)) : null;
+            $rainMm = $hasRain ? round(array_sum(array_column($row['rain'], 'total')), 1) : null;
+            $wetDays = $hasRain ? count(array_filter($row['rain'], fn (array $day) => $day['sailing'] >= self::WET_DAY_SAILING_MM)) : null;
 
             $climateRows[] = [
                 'spot_guide_id' => $spot->id,
@@ -238,7 +250,7 @@ class WeatherFetcher
                 'kph_wind' => (int) round($ktsWind * 1.852),
                 'kph_gust' => (int) round($ktsGust * 1.852),
                 'rain_mm' => $rainMm,
-                'rainy_days' => $rainyDays,
+                'wet_days' => $wetDays,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

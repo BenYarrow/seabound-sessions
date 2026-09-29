@@ -23,7 +23,7 @@ import { getSpotGuideColours } from '@/Helpers/colours'
 import { rankSpots, unitToKts, type SailableDataset } from '@/Helpers/sailableDays'
 import { parseFilters, filtersToQuery, defaultFilters, hasActiveFilters, type DestinationFilters, type GroupBy } from '@/Helpers/destinationFilters'
 import { groupClimate, groupRankedSpots, type ChartGrouping } from '@/Helpers/chartGrouping'
-import { MONTH_NAMES, climateTempForMonth, climateRainyDaysForMonth, type ClimateDataset } from '@/Helpers/climate'
+import { MONTH_NAMES, climateTempForMonth, climateWetDaysForMonth, type ClimateDataset } from '@/Helpers/climate'
 import type { SelectOption } from '@/Helpers/selectTypes'
 import type { FocalImage } from '@/types/media'
 
@@ -151,16 +151,16 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
         return lookup
     }, [spotGuides])
 
-    /** "≈ N windy days · T°C · R rainy days" stat for a card, from the ranked row + that month's typical climate. */
+    /** "≈ N windy days · T°C · W wet days" stat for a card, from the ranked row + that month's typical climate. */
     const statFor = (title: string): string => {
         const row = visibleRanked.find((entry) => entry.title === title)
         const days = row ? Math.round(row.avgDaysThisMonth) : 0
         const temp = climateTempForMonth(climate, title, monthName)
         const tempPart = temp !== null ? ` · ${Math.round(temp)}°C` : ''
-        // Omitted (not "0 rainy days") until the spot has been re-fetched with rain data.
-        const rainyDays = climateRainyDaysForMonth(climate, title, monthName)
-        const rainyRounded = rainyDays !== null ? Math.round(rainyDays) : null
-        const rainPart = rainyRounded !== null ? ` · ${rainyRounded} rainy ${rainyRounded === 1 ? 'day' : 'days'}` : ''
+        // Omitted (not "0 wet days") until the spot has been re-fetched with rain data.
+        const wetDays = climateWetDaysForMonth(climate, title, monthName)
+        const wetRounded = wetDays !== null ? Math.round(wetDays) : null
+        const rainPart = wetRounded !== null ? ` · ${wetRounded} wet ${wetRounded === 1 ? 'day' : 'days'}` : ''
         return `≈ ${days} windy ${days === 1 ? 'day' : 'days'}${tempPart}${rainPart}`
     }
 
@@ -378,11 +378,11 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                             colours={chartColours}
                             selectedMonth={filters.month}
                             seriesLabel={chartGrouping}
-                            datapoint="rainyDays"
-                            title="Rainy Days"
-                            yAxisLabel="Rainy days / month"
+                            datapoint="wetDays"
+                            title="Wet Days"
+                            yAxisLabel="Wet days / month"
                             formatValue={(value) => `${value} ${value === 1 ? 'day' : 'days'}`}
-                            note={<><strong className="text-secondary">Note:</strong> A rainy day is one with at least 1 mm of rain across the whole day (not just sailing hours). Rain doesn't affect the wind ranking — use it to spot wet or stormy seasons.</>}
+                            note={<><strong className="text-secondary">Note:</strong> A wet day has 3 mm or more of rain between 9am and 7pm — enough to spoil a session, not a passing shower. Rain doesn't affect the wind ranking; use it to spot wet or stormy seasons.</>}
                         />
                     </div>
                 </section>

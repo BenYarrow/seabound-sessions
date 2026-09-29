@@ -113,9 +113,9 @@ class DestinationController extends Controller
                     'kphGust' => (int) round($monthRecords->avg('kph_gust')),
                     // Rain averages only the years that have it (rows fetched before
                     // rainfall existed hold null), and stays null when none do, so
-                    // the UI can hide it rather than show a false "0 rainy days".
+                    // the UI can hide it rather than show a false "0 wet days".
                     'rainMm' => $averageKnown($monthRecords, 'rain_mm'),
-                    'rainyDays' => $averageKnown($monthRecords, 'rainy_days'),
+                    'wetDays' => $averageKnown($monthRecords, 'wet_days'),
                 ])
                 ->values()
                 ->toArray(),
