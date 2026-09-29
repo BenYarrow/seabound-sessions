@@ -9,6 +9,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from 'recharts'
 import { prepareSailableChartData, MONTH_LABELS } from '@/Helpers/sailableChartData'
+import ChartHeading from '@/Components/Common/ChartHeading'
 import type { RankedSpot } from '@/Helpers/sailableDays'
 
 interface Props {
@@ -18,20 +19,22 @@ interface Props {
     selectedMonth: number
     /** e.g. "20 kts" — shown in the axis label so the chart reads on its own. */
     minLabel: string
+    /** What each bar series represents (spot / country / continent), for the subtitle. */
+    seriesLabel?: string
 }
 
 /**
  * Render the sailable-days-per-month grouped bar chart for the ranked spots.
  */
-const SailableDaysChart = ({ ranked, colours, selectedMonth, minLabel }: Props) => {
+const SailableDaysChart = ({ ranked, colours, selectedMonth, minLabel, seriesLabel = 'spot' }: Props) => {
     const data = prepareSailableChartData(ranked)
 
     return (
-        <div className="bg-white p-5 lg:p-6 border border-secondary/10">
-            <h3 className="text-secondary font-medium mb-1">Sailable days per month</h3>
-            <p className="text-secondary/50 text-sm mb-5">
-                Typical days with 2+ hours at or above {minLabel}
-            </p>
+        <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
+            <ChartHeading
+                title="Sailable Days per Month"
+                subtitle={`Typical days with 2+ hours at or above ${minLabel}, by ${seriesLabel}`}
+            />
             <ResponsiveContainer width="100%" height={360}>
                 <BarChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.08)" />

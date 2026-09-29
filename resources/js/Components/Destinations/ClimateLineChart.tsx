@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 import { prepareClimateData, MONTH_NAMES, type ClimateDataset, type ClimateMonth } from '@/Helpers/climate'
 import type { SelectOption } from '@/Helpers/selectTypes'
+import ChartHeading from '@/Components/Common/ChartHeading'
 
 interface Props {
     climate: ClimateDataset
@@ -29,6 +30,8 @@ interface Props {
     /** Which climate field to plot. */
     datapoint: keyof ClimateMonth
     title: string
+    /** What the metric is; ", by <series>" is appended. Defaults to "Typical-year monthly averages". */
+    subtitle?: string
     /** Y-axis label, e.g. "Avg temp (°C)". */
     yAxisLabel: string
     /** Formats one value for the tooltip, e.g. 18 -> "18°C". */
@@ -51,6 +54,7 @@ const ClimateLineChart = ({
     seriesLabel = 'spot',
     datapoint,
     title,
+    subtitle,
     yAxisLabel,
     formatValue,
     note,
@@ -118,13 +122,7 @@ const ClimateLineChart = ({
     return (
         <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
             {/* Header */}
-            <div>
-                <h3 className="font-display text-secondary tracking-wide"
-                    style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)' }}>
-                    {title}
-                </h3>
-                <p className="text-secondary/50 text-xs mt-1">Typical-year averages by {seriesLabel}</p>
-            </div>
+            <ChartHeading title={title} subtitle={`${subtitle ?? 'Typical-year monthly averages'}, by ${seriesLabel}`} />
 
             {/* Chart */}
             <div className="h-[22rem]">

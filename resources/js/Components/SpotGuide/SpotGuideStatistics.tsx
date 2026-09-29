@@ -10,6 +10,7 @@ import {
     ResponsiveContainer,
 } from 'recharts'
 import Icon from '@/Components/Common/Icon'
+import ChartHeading from '@/Components/Common/ChartHeading'
 import { faSlidersH, faRotateLeft } from '@fortawesome/free-solid-svg-icons'
 
 interface WeatherMonth {
@@ -238,12 +239,7 @@ const SpotGuideStatistics = ({ weatherRecords }: Props) => {
             <div className="container mx-auto py-10 lg:py-14 space-y-8">
                 {/* Wind chart */}
                 <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
-                    <div>
-                        <h3 className="font-display text-secondary tracking-wide" style={{ fontSize: 'clamp(1.3rem, 2.5vw, 1.8rem)' }}>
-                            Average Wind Statistics
-                        </h3>
-                        <p className="text-secondary/50 text-xs mt-1">Monthly wind & gust averages · {activeYear}</p>
-                    </div>
+                    <ChartHeading title="Average Wind Statistics" subtitle={`Monthly wind & gust averages · ${activeYear}`} />
                     <div className="h-[22rem]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 50 }}>
@@ -268,12 +264,7 @@ const SpotGuideStatistics = ({ weatherRecords }: Props) => {
 
                 {/* Temperature chart */}
                 <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
-                    <div>
-                        <h3 className="font-display text-secondary tracking-wide" style={{ fontSize: 'clamp(1.3rem, 2.5vw, 1.8rem)' }}>
-                            Average Temperature
-                        </h3>
-                        <p className="text-secondary/50 text-xs mt-1">Monthly temperature averages · {activeYear}</p>
-                    </div>
+                    <ChartHeading title="Average Temperature" subtitle={`Monthly temperature averages · ${activeYear}`} />
                     <div className="h-[22rem]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 50 }}>
@@ -292,12 +283,7 @@ const SpotGuideStatistics = ({ weatherRecords }: Props) => {
                 {/* Rainfall chart */}
                 {hasRain && (
                     <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
-                        <div>
-                            <h3 className="font-display text-secondary tracking-wide" style={{ fontSize: 'clamp(1.3rem, 2.5vw, 1.8rem)' }}>
-                                Wet Days
-                            </h3>
-                            <p className="text-secondary/50 text-xs mt-1">Days with 3 mm+ of rain during sailing hours (9am–7pm) · {activeYear}</p>
-                        </div>
+                        <ChartHeading title="Wet Days" subtitle={`Days with 3 mm+ of rain between 9am and 7pm · ${activeYear}`} />
                         <div className="h-[22rem]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 50 }}>

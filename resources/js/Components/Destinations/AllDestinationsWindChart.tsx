@@ -19,6 +19,7 @@ import {
 import { prepareClimateData, MONTH_NAMES, type ClimateDataset, type ClimateMonth } from '@/Helpers/climate'
 import type { WindUnit } from '@/Helpers/sailableDays'
 import type { SelectOption } from '@/Helpers/selectTypes'
+import ChartHeading from '@/Components/Common/ChartHeading'
 
 interface Props {
     climate: ClimateDataset
@@ -108,13 +109,7 @@ const AllDestinationsWindChart = ({
         <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                <div>
-                    <h3 className="font-display text-secondary tracking-wide"
-                        style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)' }}>
-                        Wind Speed Averages
-                    </h3>
-                    <p className="text-secondary/50 text-xs mt-1">Typical-year monthly breakdown by {seriesLabel}</p>
-                </div>
+                <ChartHeading title="Wind Speed Averages" subtitle={`Typical-year monthly averages, by ${seriesLabel}`} />
 
                 {/* Controls */}
                 <div className="flex flex-wrap items-center gap-4 lg:gap-6">

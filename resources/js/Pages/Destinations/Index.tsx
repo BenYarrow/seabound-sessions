@@ -352,7 +352,7 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                         </div>
                     </div>
                     <div className="container mx-auto pb-14 lg:pb-16 space-y-8">
-                        <SailableDaysChart ranked={chartRanked} colours={chartColours} selectedMonth={filters.month} minLabel={minLabel} />
+                        <SailableDaysChart ranked={chartRanked} colours={chartColours} selectedMonth={filters.month} minLabel={minLabel} seriesLabel={chartGrouping} />
                         <AllDestinationsWindChart
                             climate={chartClimate}
                             activeDestinations={chartSeries}
@@ -380,6 +380,7 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                             seriesLabel={chartGrouping}
                             datapoint="wetDays"
                             title="Wet Days"
+                            subtitle="Typical days with 3 mm+ of rain between 9am and 7pm"
                             yAxisLabel="Wet days / month"
                             formatValue={(value) => `${value} ${value === 1 ? 'day' : 'days'}`}
                             note={<><strong className="text-secondary">Note:</strong> A wet day has 3 mm or more of rain between 9am and 7pm — enough to spoil a session, not a passing shower. Rain doesn't affect the wind ranking; use it to spot wet or stormy seasons.</>}
