@@ -5,6 +5,8 @@ import { usePage } from '@inertiajs/react'
 import { Link } from '@inertiajs/react'
 import Icon from '@/Components/Common/Icon'
 import CoverImage from '@/Components/Common/CoverImage'
+import ClickToInteract from '@/Components/Map/ClickToInteract'
+import { MAP_STYLE, applyLightAtmosphere } from '@/Components/Map/mapTheme'
 import type { FocalImage } from '@/types/media'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -28,6 +30,11 @@ const INITIAL_VIEW = {
     longitude: 15,
     zoom: 1.2,
 }
+
+// Zoom bounds: out to just the whole globe, in to roughly town level — past
+// that the wind markers stop being useful and the basemap is mostly empty sea.
+const MIN_ZOOM = 1
+const MAX_ZOOM = 10
 
 const DestinationsMap = ({ spotGuides }: Props) => {
     const { mapboxToken } = usePage<{ mapboxToken: string }>().props as any
@@ -69,26 +76,18 @@ const DestinationsMap = ({ spotGuides }: Props) => {
     }
 
     return (
-        <div className="destinations-map w-full">
+        <ClickToInteract className="destinations-map w-full">
             <Map
                 ref={mapRef}
                 mapboxAccessToken={mapboxToken}
                 initialViewState={INITIAL_VIEW}
                 style={{ height: 620 }}
-                mapStyle="mapbox://styles/mapbox/light-v11"
+                minZoom={MIN_ZOOM}
+                maxZoom={MAX_ZOOM}
+                mapStyle={MAP_STYLE}
                 logoPosition="bottom-right"
                 attributionControl={false}
-                onLoad={(e) => {
-                    // Pale atmosphere so the globe reads light, matching the
-                    // page — not the dark space the dark-v11 style implied.
-                    e.target.setFog({
-                        color: 'rgb(224, 236, 242)',
-                        'high-color': 'rgb(205, 224, 236)',
-                        'space-color': 'rgb(235, 241, 246)',
-                        'horizon-blend': 0.06,
-                        'star-intensity': 0,
-                    })
-                }}
+                onLoad={applyLightAtmosphere}
             >
                 {markers}
 
@@ -139,7 +138,7 @@ const DestinationsMap = ({ spotGuides }: Props) => {
                     <span>Reset view</span>
                 </button>
             </Map>
-        </div>
+        </ClickToInteract>
     )
 }
 

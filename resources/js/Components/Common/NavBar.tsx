@@ -7,7 +7,7 @@ import SearchPanel from './SearchPanel'
 
 const navItems = [
     { title: 'Home', href: '/' },
-    { title: 'About Us', href: '/about' },
+    { title: 'About', href: '/about' },
     { title: 'Destinations', href: '/destinations' },
     { title: 'Blog', href: '/blog' },
     { title: 'Contact', href: '/contact' },

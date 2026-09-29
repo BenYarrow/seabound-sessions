@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import Select from 'react-select'
 import Icon from '@/Components/Common/Icon'
-import { faSlidersH, faChevronDown } from '@fortawesome/free-solid-svg-icons'
+import { faSlidersH, faChevronDown, faRotateLeft } from '@fortawesome/free-solid-svg-icons'
 import { MIN_OPTIONS, snapToUnitOption, unitToKts, type WindUnit } from '@/Helpers/sailableDays'
 import { TEMP_OPTIONS, type DestinationFilters, type GroupBy } from '@/Helpers/destinationFilters'
 import type { SelectOption } from '@/Helpers/selectTypes'
@@ -69,12 +69,16 @@ interface Props {
     destinationOptions: SelectOption[]
     filters: DestinationFilters
     onChange: (next: DestinationFilters) => void
+    /** Return every filter to its fresh-visit default. */
+    onReset: () => void
+    /** False when the filters are already at their defaults (the reset button is then disabled). */
+    canReset: boolean
 }
 
 /**
- * Render the destinations filter bar (Month / Group by / Spots / Unit / Minimum).
+ * Render the destinations filter bar (Month / Group by / Spots / Unit / Minimum / Reset).
  */
-const DestinationFilterBar = ({ monthOptions, groupOptions, destinationOptions, filters, onChange }: Props) => {
+const DestinationFilterBar = ({ monthOptions, groupOptions, destinationOptions, filters, onChange, onReset, canReset }: Props) => {
     const unitOptions: { label: string; value: WindUnit }[] = [
         { label: 'kts', value: 'kts' }, { label: 'mph', value: 'mph' }, { label: 'kph', value: 'kph' },
     ]
@@ -209,6 +213,16 @@ const DestinationFilterBar = ({ monthOptions, groupOptions, destinationOptions, 
                             isSearchable={false}
                         />
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={onReset}
+                        disabled={!canReset}
+                        className="flex items-center justify-center gap-2 shrink-0 min-h-[2.75rem] px-4 border border-secondary/15 text-secondary text-xs uppercase tracking-wide transition-colors duration-200 hover:border-primary hover:text-primary disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                        <Icon icon={faRotateLeft} size="size-3.5" />
+                        <span>Reset</span>
+                    </button>
                 </div>
             </div>
         </div>

@@ -22,6 +22,8 @@ interface Props {
     activeDestinations: SelectOption[]
     colours: Record<string, string>
     selectedMonth: number
+    /** What each line represents (spot / country / continent), for the subtitle. */
+    seriesLabel?: string
 }
 
 const AXIS_TICK = { fill: 'rgba(0,0,0,0.6)', fontSize: 11 }
@@ -32,6 +34,7 @@ const AllDestinationsTempChart = ({
     activeDestinations,
     colours,
     selectedMonth,
+    seriesLabel = 'spot',
 }: Props) => {
     // Narrow the full climate dataset down to the currently-active destinations,
     // mirroring the active-destination filtering previously applied via the
@@ -95,7 +98,7 @@ const AllDestinationsTempChart = ({
                     style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)' }}>
                     Temperature Trends
                 </h3>
-                <p className="text-secondary/50 text-xs mt-1">Typical-year averages by spot</p>
+                <p className="text-secondary/50 text-xs mt-1">Typical-year averages by {seriesLabel}</p>
             </div>
 
             {/* Chart */}

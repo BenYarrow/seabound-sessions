@@ -26,6 +26,8 @@ interface Props {
     activeWindUnit: WindUnit
     colours: Record<string, string>
     selectedMonth: number
+    /** What each line represents (spot / country / continent), for the subtitle. */
+    seriesLabel?: string
 }
 
 const AXIS_TICK = { fill: 'rgba(0,0,0,0.6)', fontSize: 11 }
@@ -37,6 +39,7 @@ const AllDestinationsWindChart = ({
     activeWindUnit,
     colours,
     selectedMonth,
+    seriesLabel = 'spot',
 }: Props) => {
     // Wind vs gust is specific to this chart (not part of the shared filter bar
     // state / URL), so it stays as local state rather than a lifted prop.
@@ -110,7 +113,7 @@ const AllDestinationsWindChart = ({
                         style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)' }}>
                         Wind Speed Averages
                     </h3>
-                    <p className="text-secondary/50 text-xs mt-1">Typical-year monthly breakdown by spot</p>
+                    <p className="text-secondary/50 text-xs mt-1">Typical-year monthly breakdown by {seriesLabel}</p>
                 </div>
 
                 {/* Controls */}
