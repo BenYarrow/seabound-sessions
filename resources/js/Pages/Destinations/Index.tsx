@@ -17,12 +17,13 @@ import DestinationsMap from '@/Components/Map/DestinationsMap'
 import DestinationFilterBar from '@/Components/Destinations/DestinationFilterBar'
 import SailableDaysChart from '@/Components/Destinations/SailableDaysChart'
 import AllDestinationsWindChart from '@/Components/Destinations/AllDestinationsWindChart'
-import AllDestinationsTempChart from '@/Components/Destinations/AllDestinationsTempChart'
+import ClimateLineChart from '@/Components/Destinations/ClimateLineChart'
 import AnimateInView from '@/Components/Common/AnimateInView'
 import { getSpotGuideColours } from '@/Helpers/colours'
 import { rankSpots, unitToKts, type SailableDataset } from '@/Helpers/sailableDays'
-import { parseFilters, filtersToQuery, type DestinationFilters, type GroupBy } from '@/Helpers/destinationFilters'
-import { MONTH_NAMES, climateTempForMonth, type ClimateDataset } from '@/Helpers/climate'
+import { parseFilters, filtersToQuery, defaultFilters, hasActiveFilters, type DestinationFilters, type GroupBy } from '@/Helpers/destinationFilters'
+import { groupClimate, groupRankedSpots, type ChartGrouping } from '@/Helpers/chartGrouping'
+import { MONTH_NAMES, climateTempForMonth, climateWetDaysForMonth, type ClimateDataset } from '@/Helpers/climate'
 import type { SelectOption } from '@/Helpers/selectTypes'
 import type { FocalImage } from '@/types/media'
 
@@ -97,6 +98,9 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
         window.history.replaceState(window.history.state, '', `/destinations?${query}`)
     }
 
+    /** Return every filter to its fresh-visit default (current month, 20 kts, all spots…). */
+    const resetFilters = () => updateFilters(defaultFilters(currentMonth))
+
     const monthOptions = MONTH_NAMES.map((name, index) => ({ label: name, value: index + 1 }))
     const groupOptions: { label: string; value: GroupBy }[] = [
         { label: 'By continent', value: 'continent' },
@@ -147,13 +151,17 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
         return lookup
     }, [spotGuides])
 
-    /** "≈ N windy days · T°C" stat for a card, from the ranked row + that month's typical temp. */
+    /** "≈ N windy days · T°C · W wet days" stat for a card, from the ranked row + that month's typical climate. */
     const statFor = (title: string): string => {
         const row = visibleRanked.find((entry) => entry.title === title)
         const days = row ? Math.round(row.avgDaysThisMonth) : 0
         const temp = climateTempForMonth(climate, title, monthName)
         const tempPart = temp !== null ? ` · ${Math.round(temp)}°C` : ''
-        return `≈ ${days} windy ${days === 1 ? 'day' : 'days'}${tempPart}`
+        // Omitted (not "0 wet days") until the spot has been re-fetched with rain data.
+        const wetDays = climateWetDaysForMonth(climate, title, monthName)
+        const wetRounded = wetDays !== null ? Math.round(wetDays) : null
+        const rainPart = wetRounded !== null ? ` · ${wetRounded} wet ${wetRounded === 1 ? 'day' : 'days'}` : ''
+        return `≈ ${days} windy ${days === 1 ? 'day' : 'days'}${tempPart}${rainPart}`
     }
 
     // `visibleRanked` covers every active title minus any dropped by the opt-in
@@ -164,6 +172,42 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
     // always guarantees a non-empty set), this is a real "nothing matches"
     // state and needs its own friendly message rather than blank sections.
     const isTemperatureFilterEmpty = filters.minTemp > 0 && visibleRanked.length === 0
+
+    // Chart-only summarising: one series per spot, country or continent. It
+    // deliberately sits downstream of the page filters — groups are built from
+    // `visibleRanked` (spot selection + min-temp), so a continent's line is the
+    // mean of the spots currently in view, not of every spot we hold. Kept out
+    // of the URL: it changes how the charts read, not which spots match.
+    const [chartGrouping, setChartGrouping] = useState<ChartGrouping>('spot')
+    const chartGroupingOptions: { label: string; value: ChartGrouping }[] = [
+        { label: 'Spot', value: 'spot' },
+        { label: 'Country', value: 'country' },
+        { label: 'Continent', value: 'continent' },
+    ]
+
+    /** Group label for a spot under the current chart grouping (null = no country, so it can't be grouped). */
+    const groupLabelFor = (title: string): string | null => {
+        const country = spotByTitle[title]?.country
+        if (!country) return null
+        return chartGrouping === 'continent' ? (CONTINENT_LABELS[country.continent] ?? country.continent) : country.name
+    }
+
+    const chartRanked = groupRankedSpots(visibleRanked, chartGrouping, groupLabelFor)
+    const chartClimate = groupClimate(climate, visibleRanked.map((row) => row.title), chartGrouping, groupLabelFor)
+    const chartSeries = chartRanked.map((row) => ({ label: row.title, value: row.title }))
+
+    // Colours per grouping, seeded from EVERY spot (not just the filtered set) so
+    // a country/continent keeps its colour as filters change — same rule as the
+    // per-spot colours above.
+    const groupColours = useMemo(() => {
+        const labelsFor = (pick: (guide: SpotGuide) => string) =>
+            [...new Set(spotGuides.filter((guide) => guide.country).map(pick))]
+        return {
+            country: getSpotGuideColours(labelsFor((guide) => guide.country!.name)),
+            continent: getSpotGuideColours(labelsFor((guide) => CONTINENT_LABELS[guide.country!.continent] ?? guide.country!.continent)),
+        }
+    }, [spotGuides])
+    const chartColours = chartGrouping === 'spot' ? colours : groupColours[chartGrouping]
 
     const mastheadImage = static_masthead ?? spotGuides.find((s) => s.thumbnail)?.thumbnail ?? null
     const minLabel = `${filters.min} ${filters.unit}`
@@ -195,6 +239,8 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                 destinationOptions={destinationOptions}
                 filters={filters}
                 onChange={updateFilters}
+                onReset={resetFilters}
+                canReset={hasActiveFilters(filters, currentMonth)}
             />
 
             {/* Intro */}
@@ -204,10 +250,20 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                     <h2 className="font-display text-secondary leading-none tracking-wide" style={{ fontSize: 'clamp(2.2rem, 5vw, 4rem)' }}>
                         Where's Windy in {MONTH_NAMES[filters.month - 1]}?
                     </h2>
-                    <p className="text-gray-500 text-base lg:text-lg leading-relaxed mt-4 max-w-2xl">
-                        Ranked by the typical number of days each spot blows {filters.min} {filters.unit} or more
-                        for at least two hours — set your minimum above.
-                    </p>
+                    <div className="text-gray-500 text-base lg:text-lg leading-relaxed mt-4 max-w-3xl space-y-3">
+                        <p>
+                            Spots are ranked by their <strong className="text-secondary font-medium">average number of windy days per month</strong> —
+                            how many days in a typical {monthName} the wind reaches {filters.min} {filters.unit} or more for at
+                            least two hours of daylight, averaged over the last few years of hourly weather records.
+                        </p>
+                        <p>
+                            Use the filters above to pick your travel month and the minimum wind you want to sail in (lower for
+                            foiling and light-wind freeride, higher for wave and bump &amp; jump). You can narrow the list to
+                            particular destinations, set a minimum air temperature to hide spots that are too cold that month,
+                            and group the results by continent, country or one global ranking. The charts further down follow
+                            the same filters.
+                        </p>
+                    </div>
                 </div>
             </section>
 
@@ -235,23 +291,23 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                 </section>
             ) : filters.group === 'global' ? (
                 <section className="bg-white">
-                    <div className="container mx-auto pt-14 lg:pt-18">
+                    <div className="container mx-auto pt-14 lg:pt-16">
                         <SectionHeading label={`Best for ${MONTH_NAMES[filters.month - 1]}`} count={rankedGuides.length} />
                     </div>
                     <CardGrid guides={rankedGuides} showProvenance={showProvenance} statFor={statFor} withContinent />
-                    <div className="container mx-auto pb-6" />
+                    <div className="pb-14 lg:pb-16" />
                 </section>
             ) : (
                 buildGroups(filters.group).map(([groupKey, guides], sectionIndex) => (
                     <section key={groupKey} className={sectionIndex % 2 === 0 ? 'bg-white' : 'bg-cream'}>
-                        <div className="container mx-auto pt-14 lg:pt-18">
+                        <div className="container mx-auto pt-14 lg:pt-16">
                             <SectionHeading
                                 label={filters.group === 'continent' ? (CONTINENT_LABELS[groupKey] || groupKey) : (guides[0]?.country?.name || groupKey)}
                                 count={guides.length}
                             />
                         </div>
                         <CardGrid guides={guides} showProvenance={showProvenance} statFor={statFor} />
-                        <div className="container mx-auto pb-6" />
+                        <div className="pb-14 lg:pb-16" />
                     </section>
                 ))
             )}
@@ -262,26 +318,73 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                 (unlike its wind/temp siblings) has no self-hide guard and would render
                 a blank chart frame. */}
             {allTitles.length > 0 && !isTemperatureFilterEmpty && (
-                <section className="bg-primary-lightest">
-                    <div className="container mx-auto pt-16 lg:pt-20 pb-10 lg:pb-12">
+                // why: border-t marks the switch from the card listing to the data — the
+                // listing's last section can be cream, which sits close to this tint.
+                <section className="bg-primary-lightest border-t border-secondary/10">
+                    <div className="container mx-auto pt-14 lg:pt-16 pb-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
                         <div className="flex items-start gap-4">
                             <div className="mt-2 w-1 h-12 bg-orange rounded-full shrink-0" />
                             <div>
                                 <h2 className="font-display text-secondary leading-none tracking-wide" style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}>Wind & Weather Data</h2>
-                                <p className="text-secondary/50 text-sm mt-2">Typical-year averages across all destinations · {MONTH_NAMES[filters.month - 1]} highlighted</p>
+                                <p className="text-secondary/50 text-sm mt-2">
+                                    Typical-year averages for the destinations in your filters · {monthName} highlighted
+                                    {chartGrouping !== 'spot' && ` · each ${chartGrouping} is the average of its spots`}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Series grouping — chart-only, applied on top of the page filters. */}
+                        <div role="group" aria-label="Compare by" className="flex items-center gap-3 shrink-0">
+                            <span className="text-[10px] uppercase tracking-[0.2em] text-secondary/50">Compare by</span>
+                            <div className="flex border border-secondary/15 bg-white">
+                                {chartGroupingOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => setChartGrouping(option.value)}
+                                        aria-pressed={chartGrouping === option.value}
+                                        className={`px-3.5 py-2 text-xs uppercase tracking-wide transition-colors duration-200 ${chartGrouping === option.value ? 'bg-primary text-white' : 'text-secondary/60 hover:text-primary'}`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>
-                    <div className="container mx-auto py-4 lg:py-8 space-y-8">
-                        <SailableDaysChart ranked={visibleRanked} colours={colours} selectedMonth={filters.month} minLabel={minLabel} />
+                    <div className="container mx-auto pb-14 lg:pb-16 space-y-8">
+                        <SailableDaysChart ranked={chartRanked} colours={chartColours} selectedMonth={filters.month} minLabel={minLabel} seriesLabel={chartGrouping} />
                         <AllDestinationsWindChart
-                            climate={climate}
-                            activeDestinations={visibleRanked.map((row) => ({ label: row.title, value: row.title }))}
+                            climate={chartClimate}
+                            activeDestinations={chartSeries}
                             activeWindUnit={filters.unit}
-                            colours={colours}
+                            colours={chartColours}
                             selectedMonth={filters.month}
+                            seriesLabel={chartGrouping}
                         />
-                        <AllDestinationsTempChart climate={climate} activeDestinations={visibleRanked.map((row) => ({ label: row.title, value: row.title }))} colours={colours} selectedMonth={filters.month} />
+                        <ClimateLineChart
+                            climate={chartClimate}
+                            activeDestinations={chartSeries}
+                            colours={chartColours}
+                            selectedMonth={filters.month}
+                            seriesLabel={chartGrouping}
+                            datapoint="avgTemp"
+                            title="Temperature Trends"
+                            yAxisLabel="Avg temp (°C)"
+                            formatValue={(value) => `${value}°C`}
+                        />
+                        <ClimateLineChart
+                            climate={chartClimate}
+                            activeDestinations={chartSeries}
+                            colours={chartColours}
+                            selectedMonth={filters.month}
+                            seriesLabel={chartGrouping}
+                            datapoint="wetDays"
+                            title="Wet Days"
+                            subtitle="Typical days with 3 mm+ of rain between 9am and 7pm"
+                            yAxisLabel="Wet days / month"
+                            formatValue={(value) => `${value} ${value === 1 ? 'day' : 'days'}`}
+                            note={<><strong className="text-secondary">Note:</strong> A wet day has 3 mm or more of rain between 9am and 7pm — enough to spoil a session, not a passing shower. Rain doesn't affect the wind ranking; use it to spot wet or stormy seasons.</>}
+                        />
                     </div>
                 </section>
             )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseFilters, filtersToQuery, type DestinationFilters } from '@/Helpers/destinationFilters'
+import { parseFilters, filtersToQuery, defaultFilters, hasActiveFilters, type DestinationFilters } from '@/Helpers/destinationFilters'
 
 describe('destination filters URL sync', () => {
     it('falls back to defaults on an empty query', () => {
@@ -49,5 +49,19 @@ describe('destination filters URL sync', () => {
 
         const withTemp = filtersToQuery({ month: 7, min: 20, unit: 'kts', group: 'continent', spots: [], minTemp: 20 })
         expect(withTemp.temp).toBe('20')
+    })
+})
+
+describe('destination filters reset', () => {
+    it('builds the default filter state for a month', () => {
+        expect(defaultFilters(4)).toEqual({ month: 4, min: 20, unit: 'kts', group: 'continent', spots: [], minTemp: 0 })
+    })
+
+    it('treats untouched filters as default and any change as active', () => {
+        expect(hasActiveFilters(defaultFilters(4), 4)).toBe(false)
+        expect(hasActiveFilters({ ...defaultFilters(4), month: 5 }, 4)).toBe(true)
+        expect(hasActiveFilters({ ...defaultFilters(4), spots: ['tarifa'] }, 4)).toBe(true)
+        expect(hasActiveFilters({ ...defaultFilters(4), minTemp: 15 }, 4)).toBe(true)
+        expect(hasActiveFilters({ ...defaultFilters(4), group: 'global' }, 4)).toBe(true)
     })
 })

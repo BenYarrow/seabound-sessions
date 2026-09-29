@@ -76,10 +76,11 @@ const AnimatedInfographic = ({ stats }: AnimatedInfographicProps) => {
                     </div>
                 </div>
 
-                <ul className="flex flex-col items-center justify-center sm:flex-row sm:flex-wrap sm:justify-evenly lg:justify-around gap-8 lg:gap-12">
+                {/* lg+: one row — five 200px circles overflow the container, so they shrink to share it rather than wrap 4 + 1. */}
+                <ul className="flex flex-col items-center justify-center sm:flex-row sm:flex-wrap sm:justify-evenly lg:flex-nowrap lg:justify-between gap-8 lg:gap-6 xl:gap-10">
                     {items.map(({ label, value, icon }, index) => {
                         const listClasses = [
-                            'relative z-10 max-w-[200px] w-full aspect-square rounded-full border-2 flex items-center justify-center overflow-hidden',
+                            'relative z-10 max-w-[200px] w-full lg:flex-1 lg:min-w-0 aspect-square rounded-full border-2 flex items-center justify-center overflow-hidden',
                             'shadow-2xl shadow-white/20',
                             'group',
                             'prose prose-invert prose-h3:!mt-0',
@@ -103,7 +104,8 @@ const AnimatedInfographic = ({ stats }: AnimatedInfographicProps) => {
                                         to={value}
                                         className="text-4xl"
                                     />
-                                    <h3 className="pt-4 text-primary-lightest text-2xl">
+                                    {/* Steps down on lg, where the single row shrinks the circles, so "Restaurants" still fits. */}
+                                    <h3 className="pt-4 text-primary-lightest text-2xl lg:text-xl xl:text-2xl">
                                         {label}
                                     </h3>
                                 </div>

@@ -4,7 +4,7 @@ tags: [destinations, weather, ranking, frontend]
 status: stable
 completed: 2026-07-28
 commits: [f291f7d, 2f5f0ba, 806848f, fc1a797, bbd7578, b5dd8b3, edeed66, cf0591d, 6763538, f923f2f, 13ae14b, 47a8dc1, 1b1d987, 76847e9, 4883ec3, 9c34e29]
-pr: sailable-days-ranking (branch)
+pr: 39
 ---
 
 # Sailable-days ranking on /destinations

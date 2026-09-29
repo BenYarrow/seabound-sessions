@@ -118,14 +118,14 @@ const Contact = ({ recaptchaSiteKey, meta }: Props) => {
                             Get In Touch
                         </h1>
 
-                        <p className="text-white/40 text-sm leading-relaxed mt-5 max-w-xs">
+                        <p className="text-white/60 text-base leading-relaxed mt-5 max-w-sm">
                             Planning your next windsurfing adventure? Need local knowledge
                             or want to work with us? We'd love to hear from you.
                         </p>
 
                         <ul className="mt-8 space-y-3">
                             {helpTopics.map((topic) => (
-                                <li key={topic} className="flex items-center gap-3 text-white/45 text-sm">
+                                <li key={topic} className="flex items-center gap-3 text-white/60 text-base">
                                     <span className="w-1 h-1 rounded-full bg-primary-lighter shrink-0" />
                                     {topic}
                                 </li>

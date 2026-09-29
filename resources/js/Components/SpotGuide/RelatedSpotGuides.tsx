@@ -96,6 +96,11 @@ const RelatedSpotGuides = ({ relation, label, guides }: RelatedSpotGuidesProps) 
                         modules={guides.length > 1 ? [Navigation, Pagination] : []}
                         slidesPerView={1}
                         spaceBetween={0}
+                        // Loop so the arrows never dead-end on the last guide. Swiper
+                        // needs 3+ slides to loop one-per-view cleanly; with exactly two
+                        // it stays linear and the end arrow greys out instead (the
+                        // `swiper-button-disabled` styling on the buttons below).
+                        loop={guides.length > 2}
                         navigation={{
                             nextEl: '.swiper-related-next',
                             prevEl: '.swiper-related-prev',
@@ -169,14 +174,14 @@ const RelatedSpotGuides = ({ relation, label, guides }: RelatedSpotGuidesProps) 
                                 <button
                                     type="button"
                                     aria-label="Previous spot guide"
-                                    className="swiper-related-prev w-11 h-11 rounded-full border border-secondary/30 flex items-center justify-center text-secondary hover:bg-secondary hover:text-white transition-colors duration-300"
+                                    className="swiper-related-prev w-11 h-11 rounded-full border border-secondary/30 flex items-center justify-center text-secondary hover:bg-secondary hover:text-white transition-colors duration-300 [&.swiper-button-disabled]:opacity-30 [&.swiper-button-disabled]:pointer-events-none"
                                 >
                                     <Icon icon={faChevronLeft} size="size-3.5" />
                                 </button>
                                 <button
                                     type="button"
                                     aria-label="Next spot guide"
-                                    className="swiper-related-next w-11 h-11 rounded-full border border-secondary/30 flex items-center justify-center text-secondary hover:bg-secondary hover:text-white transition-colors duration-300"
+                                    className="swiper-related-next w-11 h-11 rounded-full border border-secondary/30 flex items-center justify-center text-secondary hover:bg-secondary hover:text-white transition-colors duration-300 [&.swiper-button-disabled]:opacity-30 [&.swiper-button-disabled]:pointer-events-none"
                                 >
                                     <Icon icon={faChevronRight} size="size-3.5" />
                                 </button>

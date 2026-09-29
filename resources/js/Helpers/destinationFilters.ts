@@ -86,3 +86,14 @@ export const filtersToQuery = (filters: DestinationFilters): Record<string, stri
     }
     return query
 }
+
+/**
+ * The filter state a fresh visit starts with (no query string) — what the
+ * "Reset filters" button returns to. `month` is the current month, supplied by
+ * the caller so this stays pure.
+ */
+export const defaultFilters = (month: number): DestinationFilters => parseFilters('', { month })
+
+/** True when any filter differs from the fresh-visit defaults, i.e. there is something to reset. */
+export const hasActiveFilters = (filters: DestinationFilters, currentMonth: number): boolean =>
+    JSON.stringify(filtersToQuery(filters)) !== JSON.stringify(filtersToQuery(defaultFilters(currentMonth)))

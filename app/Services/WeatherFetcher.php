@@ -2,7 +2,7 @@
 
 // Shared Open-Meteo fetch service. Pulls 3 years of hourly archive data for a
 // spot guide, reduces it to monthly averages (temperature / wind / gust) over
-// the 9am–7pm sailing window, and writes WeatherRecord rows for only the
+// the 9am–7pm sailing window plus rainfall (whole-day monthly mm + sailing-hours wet days), and writes WeatherRecord rows for only the
 // complete, fully-elapsed calendar months — a spot's climate rows are deleted
 // and reinserted wholesale on each fetch (not upserted), which is what lets a
 // stale or out-of-window row self-heal on the next run. Single source of
@@ -21,6 +21,15 @@ use Illuminate\Support\Sleep;
 
 class WeatherFetcher
 {
+    /**
+     * Rain (mm) falling within the 9am–7pm sailing window that makes a day
+     * "wet" — enough to spoil it, not a passing shower. Chosen over the 1 mm
+     * meteorological rain day, which counted drizzle and the reanalysis's
+     * light tropical rain so generously that Le Morne read ~24 wet days in
+     * January (3 mm in-window gives ~14, and ~2 in its dry season).
+     */
+    public const WET_DAY_SAILING_MM = 3.0;
+
     /**
      * Fetch and aggregate monthly weather averages for one spot, then replace
      * its WeatherRecord rows wholesale (delete all, then insert) inside a
@@ -44,6 +53,7 @@ class WeatherFetcher
         $temps = [];
         $winds = [];
         $gusts = [];
+        $precipitation = [];
 
         // Start on a month boundary so the OLDEST month in range is complete.
         // A mid-month start wrote a stub row (e.g. 4 days of July 2023) which
@@ -72,7 +82,7 @@ class WeatherFetcher
                 'longitude' => $spot->longitude,
                 'start_date' => $chunkStart->format('Y-m-d'),
                 'end_date' => $chunkEnd->format('Y-m-d'),
-                'hourly' => 'temperature_2m,wind_speed_10m,wind_gusts_10m',
+                'hourly' => 'temperature_2m,wind_speed_10m,wind_gusts_10m,precipitation',
                 'wind_speed_unit' => 'kn',
                 'timezone' => 'auto',
             ]);
@@ -86,6 +96,9 @@ class WeatherFetcher
             $temps = array_merge($temps, $hourlyData['temperature_2m'] ?? []);
             $winds = array_merge($winds, $hourlyData['wind_speed_10m'] ?? []);
             $gusts = array_merge($gusts, $hourlyData['wind_gusts_10m'] ?? []);
+            // Pad to the chunk's time count so a response without precipitation
+            // can't shift later chunks' readings onto the wrong timestamps.
+            $precipitation = array_merge($precipitation, array_pad($hourlyData['precipitation'] ?? [], count($hourlyData['time'] ?? []), null));
 
             $chunkStart = $chunkEnd->copy();
         }
@@ -102,6 +115,7 @@ class WeatherFetcher
         // occurrence, before any bucketing happens.
         $seenTimestamps = [];
         $dailyMap = [];
+        $dailyRain = [];
         foreach ($times as $index => $datetime) {
             if (isset($seenTimestamps[$datetime])) {
                 continue;
@@ -109,6 +123,20 @@ class WeatherFetcher
             $seenTimestamps[$datetime] = true;
 
             $hour = (int) substr($datetime, 11, 2);
+
+            // Rain is bucketed BEFORE the sailing-window filter below, keeping two
+            // totals: the whole day (feeds the month's mm, the usual climate
+            // figure) and the 9am–7pm window (decides a wet day — overnight rain
+            // doesn't spoil a session, rain while you'd be on the water does).
+            if (isset($precipitation[$index]) && $precipitation[$index] !== null) {
+                $rainDate = substr($datetime, 0, 10);
+                $dailyRain[$rainDate] ??= ['total' => 0.0, 'sailing' => 0.0];
+                $dailyRain[$rainDate]['total'] += $precipitation[$index];
+                if ($hour >= 9 && $hour <= 19) {
+                    $dailyRain[$rainDate]['sailing'] += $precipitation[$index];
+                }
+            }
+
             if ($hour < 9 || $hour > 19) {
                 continue;
             }
@@ -136,9 +164,12 @@ class WeatherFetcher
             [$year, $monthNumber] = explode('-', $date);
             $key = "{$year}-{$monthNumber}";
             if (! isset($yearMonthMap[$key])) {
-                $yearMonthMap[$key] = ['year' => (int) $year, 'month' => (int) $monthNumber, 'days' => 0, 'temps' => [], 'winds' => [], 'gusts' => []];
+                $yearMonthMap[$key] = ['year' => (int) $year, 'month' => (int) $monthNumber, 'days' => 0, 'temps' => [], 'winds' => [], 'gusts' => [], 'rain' => []];
             }
             $yearMonthMap[$key]['days']++;
+            if (isset($dailyRain[$date])) {
+                $yearMonthMap[$key]['rain'][] = $dailyRain[$date];
+            }
             // Only contribute a metric the day actually has readings for.
             // $average returns 0.0 for an empty array, and pushing that would
             // silently drag the month's mean toward zero whenever Open-Meteo
@@ -200,6 +231,13 @@ class WeatherFetcher
             $ktsWind = round($average($row['winds']), 1);
             $ktsGust = round($average($row['gusts']), 1);
 
+            // Rain is additive: a month with no precipitation readings keeps its
+            // wind/temp row and stores null ("not fetched"), never a fabricated
+            // 0 mm. A wet day is WET_DAY_SAILING_MM+ within sailing hours.
+            $hasRain = $row['rain'] !== [];
+            $rainMm = $hasRain ? round(array_sum(array_column($row['rain'], 'total')), 1) : null;
+            $wetDays = $hasRain ? count(array_filter($row['rain'], fn (array $day) => $day['sailing'] >= self::WET_DAY_SAILING_MM)) : null;
+
             $climateRows[] = [
                 'spot_guide_id' => $spot->id,
                 'year' => $row['year'],
@@ -211,6 +249,8 @@ class WeatherFetcher
                 'mph_gust' => (int) round($ktsGust * 1.15078),
                 'kph_wind' => (int) round($ktsWind * 1.852),
                 'kph_gust' => (int) round($ktsGust * 1.852),
+                'rain_mm' => $rainMm,
+                'wet_days' => $wetDays,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

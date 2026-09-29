@@ -4,7 +4,7 @@ import Icon from './Icon'
 
 const navLinks = [
     { title: 'Home', href: '/' },
-    { title: 'About Us', href: '/about' },
+    { title: 'About', href: '/about' },
     { title: 'Destinations', href: '/destinations' },
     { title: 'Blog', href: '/blog' },
     { title: 'Contact', href: '/contact' },
@@ -48,7 +48,7 @@ const Footer = () => {
                         </Link>
                         <p className="text-white/45 text-sm leading-relaxed max-w-xs">
                             Discover the world's finest windsurfing destinations — curated guides,
-                            local knowledge, and everything you need for your next adventure.
+                            local knowledge and everything you need for your next adventure.
                         </p>
                         <div className="flex gap-4 pt-1">
                             {socialMedia.map((social) => (
@@ -90,7 +90,7 @@ const Footer = () => {
                         <h4 className="text-primary-lighter text-[10px] uppercase tracking-[0.25em] mb-6 font-medium">
                             Get in touch
                         </h4>
-                        <p className="text-white/30 text-xs leading-relaxed">
+                        <p className="text-white/45 text-sm leading-relaxed max-w-xs">
                             Planning your next trip or want to collaborate?{' '}
                             <Link href="/contact" className="text-primary-lighter/70 hover:text-primary-lighter underline underline-offset-2 transition-colors">
                                 Send us a message.

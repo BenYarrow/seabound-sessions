@@ -4,6 +4,8 @@ import { faWind, faHotel, faUtensils, faRotateLeft } from '@fortawesome/free-sol
 import { usePage } from '@inertiajs/react'
 import Icon from '@/Components/Common/Icon'
 import CoverImage from '@/Components/Common/CoverImage'
+import ClickToInteract from '@/Components/Map/ClickToInteract'
+import { MAP_STYLE, applyLightAtmosphere } from '@/Components/Map/mapTheme'
 import type { FocalImage } from '@/types/media'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -47,14 +49,15 @@ const SpotGuideMap = ({ latitude, longitude, locations }: Props) => {
     if (validLocations.length === 0) return null
 
     return (
-        <div className="destinations-map w-full">
+        <ClickToInteract className="destinations-map w-full">
             <Map
                 ref={mapRef}
                 mapboxAccessToken={mapboxToken}
                 initialViewState={initialView}
                 style={{ height: 500 }}
-                mapStyle="mapbox://styles/mapbox/dark-v11"
+                mapStyle={MAP_STYLE}
                 attributionControl={false}
+                onLoad={applyLightAtmosphere}
             >
                 {validLocations.map((loc) => {
                     const cfg = TYPE_CONFIG[loc.type]
@@ -125,7 +128,7 @@ const SpotGuideMap = ({ latitude, longitude, locations }: Props) => {
                     <span>Reset</span>
                 </button>
             </Map>
-        </div>
+        </ClickToInteract>
     )
 }
 
