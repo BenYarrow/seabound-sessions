@@ -17,13 +17,13 @@ import DestinationsMap from '@/Components/Map/DestinationsMap'
 import DestinationFilterBar from '@/Components/Destinations/DestinationFilterBar'
 import SailableDaysChart from '@/Components/Destinations/SailableDaysChart'
 import AllDestinationsWindChart from '@/Components/Destinations/AllDestinationsWindChart'
-import AllDestinationsTempChart from '@/Components/Destinations/AllDestinationsTempChart'
+import ClimateLineChart from '@/Components/Destinations/ClimateLineChart'
 import AnimateInView from '@/Components/Common/AnimateInView'
 import { getSpotGuideColours } from '@/Helpers/colours'
 import { rankSpots, unitToKts, type SailableDataset } from '@/Helpers/sailableDays'
 import { parseFilters, filtersToQuery, defaultFilters, hasActiveFilters, type DestinationFilters, type GroupBy } from '@/Helpers/destinationFilters'
 import { groupClimate, groupRankedSpots, type ChartGrouping } from '@/Helpers/chartGrouping'
-import { MONTH_NAMES, climateTempForMonth, type ClimateDataset } from '@/Helpers/climate'
+import { MONTH_NAMES, climateTempForMonth, climateRainyDaysForMonth, type ClimateDataset } from '@/Helpers/climate'
 import type { SelectOption } from '@/Helpers/selectTypes'
 import type { FocalImage } from '@/types/media'
 
@@ -151,13 +151,17 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
         return lookup
     }, [spotGuides])
 
-    /** "≈ N windy days · T°C" stat for a card, from the ranked row + that month's typical temp. */
+    /** "≈ N windy days · T°C · R rainy days" stat for a card, from the ranked row + that month's typical climate. */
     const statFor = (title: string): string => {
         const row = visibleRanked.find((entry) => entry.title === title)
         const days = row ? Math.round(row.avgDaysThisMonth) : 0
         const temp = climateTempForMonth(climate, title, monthName)
         const tempPart = temp !== null ? ` · ${Math.round(temp)}°C` : ''
-        return `≈ ${days} windy ${days === 1 ? 'day' : 'days'}${tempPart}`
+        // Omitted (not "0 rainy days") until the spot has been re-fetched with rain data.
+        const rainyDays = climateRainyDaysForMonth(climate, title, monthName)
+        const rainyRounded = rainyDays !== null ? Math.round(rainyDays) : null
+        const rainPart = rainyRounded !== null ? ` · ${rainyRounded} rainy ${rainyRounded === 1 ? 'day' : 'days'}` : ''
+        return `≈ ${days} windy ${days === 1 ? 'day' : 'days'}${tempPart}${rainPart}`
     }
 
     // `visibleRanked` covers every active title minus any dropped by the opt-in
@@ -357,7 +361,29 @@ const Index = ({ spotGuides, sailableDays, climate, showProvenance, static_masth
                             selectedMonth={filters.month}
                             seriesLabel={chartGrouping}
                         />
-                        <AllDestinationsTempChart climate={chartClimate} activeDestinations={chartSeries} colours={chartColours} selectedMonth={filters.month} seriesLabel={chartGrouping} />
+                        <ClimateLineChart
+                            climate={chartClimate}
+                            activeDestinations={chartSeries}
+                            colours={chartColours}
+                            selectedMonth={filters.month}
+                            seriesLabel={chartGrouping}
+                            datapoint="avgTemp"
+                            title="Temperature Trends"
+                            yAxisLabel="Avg temp (°C)"
+                            formatValue={(value) => `${value}°C`}
+                        />
+                        <ClimateLineChart
+                            climate={chartClimate}
+                            activeDestinations={chartSeries}
+                            colours={chartColours}
+                            selectedMonth={filters.month}
+                            seriesLabel={chartGrouping}
+                            datapoint="rainyDays"
+                            title="Rainy Days"
+                            yAxisLabel="Rainy days / month"
+                            formatValue={(value) => `${value} ${value === 1 ? 'day' : 'days'}`}
+                            note={<><strong className="text-secondary">Note:</strong> A rainy day is one with at least 1 mm of rain across the whole day (not just sailing hours). Rain doesn't affect the wind ranking — use it to spot wet or stormy seasons.</>}
+                        />
                     </div>
                 </section>
             )}

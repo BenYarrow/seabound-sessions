@@ -13,6 +13,10 @@ export interface ClimateMonth {
     mphGust: number
     kphWind: number
     kphGust: number
+    /** Typical monthly rainfall (mm); null/absent until the spot has been re-fetched with rain data. */
+    rainMm?: number | null
+    /** Typical number of rainy days (daily total >= 1 mm); null/absent until fetched. */
+    rainyDays?: number | null
 }
 
 /** title -> 12-ish month entries (only months we have data for), month-ordered. */
@@ -37,6 +41,16 @@ export const climateTempForMonth = (
 ): number | null => {
     const entry = (dataset[title] ?? []).find((month) => month.month === monthName)
     return entry ? entry.avgTemp : null
+}
+
+/** Typical rainy days for a spot in a given month name, or null if absent or not yet fetched. */
+export const climateRainyDaysForMonth = (
+    dataset: ClimateDataset,
+    title: string,
+    monthName: string
+): number | null => {
+    const entry = (dataset[title] ?? []).find((month) => month.month === monthName)
+    return entry?.rainyDays ?? null
 }
 
 /**

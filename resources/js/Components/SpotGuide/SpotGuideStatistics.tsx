@@ -21,6 +21,9 @@ interface WeatherMonth {
     mph_gust: number
     kph_wind: number
     kph_gust: number
+    /** Monthly rainfall (mm) and rainy-day count; null until the spot is re-fetched with rain data. */
+    rain_mm?: number | string | null
+    rainy_days?: number | null
 }
 
 interface SelectOption<T = string | number> {
@@ -42,6 +45,7 @@ const unitOptions: SelectOption<string>[] = [
 const GUST_COLOUR = 'hsl(192, 89%, 15%)'
 const WIND_COLOUR = 'hsl(192, 89%, 35%)'
 const TEMP_COLOUR = 'hsl(11, 61%, 58%)'
+const RAIN_COLOUR = 'hsl(185, 36%, 55%)'
 
 // Dark-on-light chart chrome — mirrors the destinations weather charts.
 const AXIS_TICK = { fill: 'rgba(0,0,0,0.6)', fontSize: 11 }
@@ -101,6 +105,9 @@ const SpotGuideStatistics = ({ weatherRecords }: Props) => {
             mphGust: Number(r.mph_gust),
             kphWind: Number(r.kph_wind),
             kphGust: Number(r.kph_gust),
+            // Kept null (not Number(null) = 0) so an unfetched month reads as "no data", not "dry".
+            rainyDays: r.rainy_days ?? null,
+            rainMm: r.rain_mm !== null && r.rain_mm !== undefined ? Number(r.rain_mm) : null,
         }))
     }, [weatherRecords, activeYear])
 
@@ -142,6 +149,31 @@ const SpotGuideStatistics = ({ weatherRecords }: Props) => {
                 <p className="flex justify-between gap-4 text-xs" style={{ color: TEMP_COLOUR }}>
                     Avg Temp <span className="font-medium tabular-nums">{d.avgTemp}°C</span>
                 </p>
+            </div>
+        )
+    }
+
+    // Rain arrived after the first weather fetches, so older years may have none —
+    // only show the rain chart for a year that actually carries it.
+    const hasRain = chartData.some((row) => row.rainyDays !== null)
+
+    const RainTooltip = ({ payload }: any) => {
+        if (!payload?.length) return null
+        const d = payload[0].payload
+        if (d.rainyDays === null) return null
+        return (
+            <div className="bg-white border border-black/10 p-3 shadow-xl min-w-[9rem]">
+                <p className="text-secondary text-xs uppercase tracking-wide border-b border-black/10 pb-2 mb-2">
+                    {d.month}
+                </p>
+                <p className="flex justify-between gap-4 text-xs text-secondary">
+                    Rainy days <span className="font-medium tabular-nums">{d.rainyDays}</span>
+                </p>
+                {d.rainMm !== null && (
+                    <p className="flex justify-between gap-4 text-xs text-secondary/60 mt-1">
+                        Total rain <span className="font-medium tabular-nums">{d.rainMm} mm</span>
+                    </p>
+                )}
             </div>
         )
     }
@@ -256,6 +288,31 @@ const SpotGuideStatistics = ({ weatherRecords }: Props) => {
                         </ResponsiveContainer>
                     </div>
                 </div>
+
+                {/* Rainfall chart */}
+                {hasRain && (
+                    <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
+                        <div>
+                            <h3 className="font-display text-secondary tracking-wide" style={{ fontSize: 'clamp(1.3rem, 2.5vw, 1.8rem)' }}>
+                                Rainy Days
+                            </h3>
+                            <p className="text-secondary/50 text-xs mt-1">Days with 1 mm+ of rain per month · {activeYear}</p>
+                        </div>
+                        <div className="h-[22rem]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 50 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.08)" />
+                                    <XAxis dataKey="month" interval={0} angle={-45} textAnchor="end" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={AXIS_LINE} />
+                                    <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={AXIS_LINE}
+                                        label={{ value: 'Days', angle: -90, position: 'insideLeft', fill: 'rgba(0,0,0,0.5)', fontSize: 11 }}
+                                    />
+                                    <Tooltip content={<RainTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                                    <Bar dataKey="rainyDays" fill={RAIN_COLOUR} radius={[2, 2, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                )}
             </div>
         </section>
     )

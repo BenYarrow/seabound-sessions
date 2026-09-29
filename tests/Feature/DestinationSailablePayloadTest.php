@@ -55,4 +55,24 @@ class DestinationSailablePayloadTest extends TestCase
             ->where('climate.Tarifa.0.avgTemp', 27)
         );
     }
+
+    public function test_climate_averages_rainfall_across_years_ignoring_unfetched_years(): void
+    {
+        $spot = SpotGuide::factory()->create(['title' => 'Tarifa', 'is_published' => true]);
+        WeatherRecord::factory()->for($spot)->create(['year' => 2023, 'month' => 1, 'rain_mm' => 80.0, 'rainy_days' => 8]);
+        WeatherRecord::factory()->for($spot)->create(['year' => 2024, 'month' => 1, 'rain_mm' => 40.0, 'rainy_days' => 4]);
+        // Fetched before rainfall existed: must not drag the average towards zero.
+        WeatherRecord::factory()->for($spot)->create(['year' => 2025, 'month' => 1, 'rain_mm' => null, 'rainy_days' => null]);
+        // A month with no rain data at all reports null, not 0 (the UI hides it).
+        WeatherRecord::factory()->for($spot)->create(['year' => 2024, 'month' => 2, 'rain_mm' => null, 'rainy_days' => null]);
+
+        $response = $this->get('/destinations');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('climate.Tarifa.0.rainMm', 60)
+            ->where('climate.Tarifa.0.rainyDays', 6)
+            ->where('climate.Tarifa.1.rainMm', null)
+            ->where('climate.Tarifa.1.rainyDays', null)
+        );
+    }
 }

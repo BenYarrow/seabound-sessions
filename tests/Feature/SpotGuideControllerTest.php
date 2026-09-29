@@ -88,6 +88,20 @@ class SpotGuideControllerTest extends TestCase
         );
     }
 
+    public function test_show_includes_rainfall_on_weather_records(): void
+    {
+        $guide = SpotGuide::factory()->create();
+        WeatherRecord::factory()->for($guide)->create(['year' => 2023, 'month' => 1, 'rain_mm' => 55.5, 'rainy_days' => 7]);
+
+        $response = $this->get(route('spot-guides.show', $guide->slug));
+
+        $response->assertInertia(
+            fn (Assert $page) => $page
+                ->where('spotGuide.weather_records.2023.0.rain_mm', '55.5')
+                ->where('spotGuide.weather_records.2023.0.rainy_days', 7)
+        );
+    }
+
     /**
      * When a guide has a MediaLibrary thumbnail with non-default focal values,
      * the controller must emit them as spotGuide.thumbnail.focal_x / focal_y

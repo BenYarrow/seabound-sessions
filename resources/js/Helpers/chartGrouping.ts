@@ -65,9 +65,12 @@ export const groupRankedSpots = (
 }
 
 /** Numeric fields of a climate month that get averaged across a group. */
-const CLIMATE_FIELDS: Exclude<keyof ClimateMonth, 'month'>[] = [
+const CLIMATE_FIELDS: Exclude<keyof ClimateMonth, 'month' | 'rainMm' | 'rainyDays'>[] = [
     'avgTemp', 'ktsWind', 'ktsGust', 'mphWind', 'mphGust', 'kphWind', 'kphGust',
 ]
+
+/** Optional rainfall fields, averaged over only the members that hold them. */
+const RAIN_FIELDS: ('rainMm' | 'rainyDays')[] = ['rainMm', 'rainyDays']
 
 /**
  * Build a climate dataset keyed by group label from the active spots, each
@@ -102,6 +105,14 @@ export const groupClimate = (
             const averaged = { month: monthName } as ClimateMonth
             CLIMATE_FIELDS.forEach((field) => {
                 averaged[field] = roundToTenth(mean(entries.map((entry) => entry[field])))
+            })
+            // Rain is optional per spot (null until re-fetched): average only the
+            // members that have it, so an unfetched spot doesn't read as bone dry.
+            RAIN_FIELDS.forEach((field) => {
+                const known = entries
+                    .map((entry) => entry[field])
+                    .filter((value): value is number => value !== null && value !== undefined)
+                averaged[field] = known.length > 0 ? roundToTenth(mean(known)) : null
             })
             return averaged
         })

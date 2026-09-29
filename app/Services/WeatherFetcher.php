@@ -2,7 +2,7 @@
 
 // Shared Open-Meteo fetch service. Pulls 3 years of hourly archive data for a
 // spot guide, reduces it to monthly averages (temperature / wind / gust) over
-// the 9am–7pm sailing window, and writes WeatherRecord rows for only the
+// the 9am–7pm sailing window plus whole-day rainfall (monthly mm + rainy days), and writes WeatherRecord rows for only the
 // complete, fully-elapsed calendar months — a spot's climate rows are deleted
 // and reinserted wholesale on each fetch (not upserted), which is what lets a
 // stale or out-of-window row self-heal on the next run. Single source of
@@ -21,6 +21,9 @@ use Illuminate\Support\Sleep;
 
 class WeatherFetcher
 {
+    /** Minimum daily precipitation (mm) for a day to count as rainy — the WMO rain-day threshold. */
+    public const RAINY_DAY_MM = 1.0;
+
     /**
      * Fetch and aggregate monthly weather averages for one spot, then replace
      * its WeatherRecord rows wholesale (delete all, then insert) inside a
@@ -44,6 +47,7 @@ class WeatherFetcher
         $temps = [];
         $winds = [];
         $gusts = [];
+        $precipitation = [];
 
         // Start on a month boundary so the OLDEST month in range is complete.
         // A mid-month start wrote a stub row (e.g. 4 days of July 2023) which
@@ -72,7 +76,7 @@ class WeatherFetcher
                 'longitude' => $spot->longitude,
                 'start_date' => $chunkStart->format('Y-m-d'),
                 'end_date' => $chunkEnd->format('Y-m-d'),
-                'hourly' => 'temperature_2m,wind_speed_10m,wind_gusts_10m',
+                'hourly' => 'temperature_2m,wind_speed_10m,wind_gusts_10m,precipitation',
                 'wind_speed_unit' => 'kn',
                 'timezone' => 'auto',
             ]);
@@ -86,6 +90,9 @@ class WeatherFetcher
             $temps = array_merge($temps, $hourlyData['temperature_2m'] ?? []);
             $winds = array_merge($winds, $hourlyData['wind_speed_10m'] ?? []);
             $gusts = array_merge($gusts, $hourlyData['wind_gusts_10m'] ?? []);
+            // Pad to the chunk's time count so a response without precipitation
+            // can't shift later chunks' readings onto the wrong timestamps.
+            $precipitation = array_merge($precipitation, array_pad($hourlyData['precipitation'] ?? [], count($hourlyData['time'] ?? []), null));
 
             $chunkStart = $chunkEnd->copy();
         }
@@ -102,11 +109,19 @@ class WeatherFetcher
         // occurrence, before any bucketing happens.
         $seenTimestamps = [];
         $dailyMap = [];
+        $dailyRain = [];
         foreach ($times as $index => $datetime) {
             if (isset($seenTimestamps[$datetime])) {
                 continue;
             }
             $seenTimestamps[$datetime] = true;
+
+            // Rain is bucketed BEFORE the sailing-window filter: a downpour at
+            // 3am still makes it a wet day for someone planning a trip, so
+            // rainfall covers the whole day while wind/temp stay 9am–7pm.
+            if (isset($precipitation[$index]) && $precipitation[$index] !== null) {
+                $dailyRain[substr($datetime, 0, 10)] = ($dailyRain[substr($datetime, 0, 10)] ?? 0.0) + $precipitation[$index];
+            }
 
             $hour = (int) substr($datetime, 11, 2);
             if ($hour < 9 || $hour > 19) {
@@ -136,9 +151,12 @@ class WeatherFetcher
             [$year, $monthNumber] = explode('-', $date);
             $key = "{$year}-{$monthNumber}";
             if (! isset($yearMonthMap[$key])) {
-                $yearMonthMap[$key] = ['year' => (int) $year, 'month' => (int) $monthNumber, 'days' => 0, 'temps' => [], 'winds' => [], 'gusts' => []];
+                $yearMonthMap[$key] = ['year' => (int) $year, 'month' => (int) $monthNumber, 'days' => 0, 'temps' => [], 'winds' => [], 'gusts' => [], 'rain' => []];
             }
             $yearMonthMap[$key]['days']++;
+            if (isset($dailyRain[$date])) {
+                $yearMonthMap[$key]['rain'][] = $dailyRain[$date];
+            }
             // Only contribute a metric the day actually has readings for.
             // $average returns 0.0 for an empty array, and pushing that would
             // silently drag the month's mean toward zero whenever Open-Meteo
@@ -200,6 +218,14 @@ class WeatherFetcher
             $ktsWind = round($average($row['winds']), 1);
             $ktsGust = round($average($row['gusts']), 1);
 
+            // Rain is additive: a month with no precipitation readings keeps its
+            // wind/temp row and stores null ("not fetched"), never a fabricated
+            // 0 mm. A rainy day is a daily total of at least 1 mm — the WMO
+            // "rain day" threshold, which ignores drizzle and model noise.
+            $hasRain = $row['rain'] !== [];
+            $rainMm = $hasRain ? round(array_sum($row['rain']), 1) : null;
+            $rainyDays = $hasRain ? count(array_filter($row['rain'], fn (float $dayTotal) => $dayTotal >= self::RAINY_DAY_MM)) : null;
+
             $climateRows[] = [
                 'spot_guide_id' => $spot->id,
                 'year' => $row['year'],
@@ -211,6 +237,8 @@ class WeatherFetcher
                 'mph_gust' => (int) round($ktsGust * 1.15078),
                 'kph_wind' => (int) round($ktsWind * 1.852),
                 'kph_gust' => (int) round($ktsGust * 1.852),
+                'rain_mm' => $rainMm,
+                'rainy_days' => $rainyDays,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];

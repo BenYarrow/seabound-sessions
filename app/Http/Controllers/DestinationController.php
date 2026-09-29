@@ -93,6 +93,11 @@ class DestinationController extends Controller
         // keyed by title (matching the chart legend labels), sorted by month.
         $monthNames = [1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April', 5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August', 9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'];
         $average = fn ($collection, string $column) => round($collection->avg($column), 1);
+        $averageKnown = function ($collection, string $column): ?float {
+            $known = $collection->pluck($column)->filter(fn ($value) => $value !== null);
+
+            return $known->isEmpty() ? null : round($known->avg(), 1);
+        };
         $climate = $spotGuides->mapWithKeys(fn ($guide) => [
             $guide->title => $guide->weatherRecords
                 ->groupBy('month')
@@ -106,6 +111,11 @@ class DestinationController extends Controller
                     'mphGust' => (int) round($monthRecords->avg('mph_gust')),
                     'kphWind' => (int) round($monthRecords->avg('kph_wind')),
                     'kphGust' => (int) round($monthRecords->avg('kph_gust')),
+                    // Rain averages only the years that have it (rows fetched before
+                    // rainfall existed hold null), and stays null when none do, so
+                    // the UI can hide it rather than show a false "0 rainy days".
+                    'rainMm' => $averageKnown($monthRecords, 'rain_mm'),
+                    'rainyDays' => $averageKnown($monthRecords, 'rainy_days'),
                 ])
                 ->values()
                 ->toArray(),

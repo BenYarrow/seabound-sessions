@@ -45,9 +45,10 @@ describe('groupClimate', () => {
         }
         const grouped = groupClimate(climate, ['Tarifa', 'Fuerteventura', 'Dahab'], 'country', groupOf)
         expect(Object.keys(grouped).sort()).toEqual(['Egypt', 'Spain'])
+        // No member holds rain data here, so the group's rain is null (unknown), not 0.
         expect(grouped.Spain).toEqual([
-            { ...climateMonth('January', 12.5, 16.5), ktsGust: 17.5 },
-            climateMonth('February', 12, 15),
+            { ...climateMonth('January', 12.5, 16.5), ktsGust: 17.5, rainMm: null, rainyDays: null },
+            { ...climateMonth('February', 12, 15), rainMm: null, rainyDays: null },
         ])
     })
 
@@ -58,5 +59,18 @@ describe('groupClimate', () => {
         }
         expect(Object.keys(groupClimate(climate, ['Tarifa'], 'country', groupOf))).toEqual(['Spain'])
         expect(groupClimate(climate, ['Tarifa'], 'spot', groupOf)).toEqual({ Tarifa: climate.Tarifa })
+    })
+
+    it('averages rainfall over the members that have it, and leaves it null when none do', () => {
+        const climate: ClimateDataset = {
+            Tarifa: [{ ...climateMonth('January', 10, 14), rainMm: 80, rainyDays: 8 }],
+            Fuerteventura: [{ ...climateMonth('January', 10, 14), rainMm: null, rainyDays: null }],
+            Dahab: [{ ...climateMonth('January', 10, 14), rainMm: null, rainyDays: null }],
+        }
+        const grouped = groupClimate(climate, ['Tarifa', 'Fuerteventura', 'Dahab'], 'country', groupOf)
+        expect(grouped.Spain[0].rainMm).toBe(80)
+        expect(grouped.Spain[0].rainyDays).toBe(8)
+        expect(grouped.Egypt[0].rainMm).toBeNull()
+        expect(grouped.Egypt[0].rainyDays).toBeNull()
     })
 })

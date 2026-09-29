@@ -1,7 +1,9 @@
-// resources/js/Components/Destinations/AllDestinationsTempChart.tsx
+// resources/js/Components/Destinations/ClimateLineChart.tsx
 //
-// Line chart comparing typical-year average temperatures across the active
-// destinations. No unit or gust control here — temperature has neither.
+// Line chart comparing one typical-year climate metric across the active
+// destinations (or countries/continents) — used for temperature and for rainy
+// days. No unit or gust control: neither metric has one. Wind has its own
+// chart (AllDestinationsWindChart) because of its wind/gust toggle and units.
 
 import { useMemo } from 'react'
 import {
@@ -14,7 +16,7 @@ import {
     ReferenceLine,
     ResponsiveContainer,
 } from 'recharts'
-import { prepareClimateData, MONTH_NAMES, type ClimateDataset } from '@/Helpers/climate'
+import { prepareClimateData, MONTH_NAMES, type ClimateDataset, type ClimateMonth } from '@/Helpers/climate'
 import type { SelectOption } from '@/Helpers/selectTypes'
 
 interface Props {
@@ -24,17 +26,34 @@ interface Props {
     selectedMonth: number
     /** What each line represents (spot / country / continent), for the subtitle. */
     seriesLabel?: string
+    /** Which climate field to plot. */
+    datapoint: keyof ClimateMonth
+    title: string
+    /** Y-axis label, e.g. "Avg temp (°C)". */
+    yAxisLabel: string
+    /** Formats one value for the tooltip, e.g. 18 -> "18°C". */
+    formatValue: (value: number) => string
+    /** Optional footnote under the chart (source / definition). */
+    note?: React.ReactNode
 }
 
 const AXIS_TICK = { fill: 'rgba(0,0,0,0.6)', fontSize: 11 }
 const AXIS_LINE = { stroke: 'rgba(0,0,0,0.15)' }
 
-const AllDestinationsTempChart = ({
+/**
+ * Render a typical-year line chart of one climate metric, one line per series.
+ */
+const ClimateLineChart = ({
     climate,
     activeDestinations,
     colours,
     selectedMonth,
     seriesLabel = 'spot',
+    datapoint,
+    title,
+    yAxisLabel,
+    formatValue,
+    note,
 }: Props) => {
     // Narrow the full climate dataset down to the currently-active destinations,
     // mirroring the active-destination filtering previously applied via the
@@ -47,8 +66,8 @@ const AllDestinationsTempChart = ({
     }, [climate, activeDestinations])
 
     const chartData = useMemo(
-        () => prepareClimateData(filteredClimate, 'avgTemp'),
-        [filteredClimate]
+        () => prepareClimateData(filteredClimate, datapoint),
+        [filteredClimate, datapoint]
     )
 
     // The selected-month reference line only renders if that month is actually
@@ -63,8 +82,9 @@ const AllDestinationsTempChart = ({
 
         const activeLabels = activeDestinations.map((d) => d.label)
         const orderedData = Object.entries(restOfData)
-            .map(([location, value]) => ({ location, value: value as number }))
-            .filter((d) => activeLabels.includes(d.location))
+            .map(([location, value]) => ({ location, value: value as number | null }))
+            // Rain can be null for a spot not yet re-fetched — leave it out rather than show "null".
+            .filter((d): d is { location: string; value: number } => activeLabels.includes(d.location) && d.value !== null && d.value !== undefined)
             .sort((a, b) => b.value - a.value)
 
         return (
@@ -80,7 +100,7 @@ const AllDestinationsTempChart = ({
                             style={{ color: colours[location] }}
                         >
                             <span className="truncate max-w-[8rem]">{location}</span>
-                            <span className="font-medium tabular-nums">{value}°C</span>
+                            <span className="font-medium tabular-nums">{formatValue(value)}</span>
                         </li>
                     ))}
                 </ul>
@@ -88,7 +108,12 @@ const AllDestinationsTempChart = ({
         )
     }
 
-    if (!chartData.length || !activeDestinations.length) return null
+    // Hide entirely when no series has a value for this metric (e.g. rain before
+    // the first re-fetch) — an empty frame of axes reads as "no rain", which is wrong.
+    const hasAnyValue = chartData.some((row) =>
+        Object.entries(row).some(([key, value]) => key !== 'month' && value !== null && value !== undefined)
+    )
+    if (!chartData.length || !activeDestinations.length || !hasAnyValue) return null
 
     return (
         <div className="bg-white border border-black/10 p-6 lg:p-8 space-y-6">
@@ -96,7 +121,7 @@ const AllDestinationsTempChart = ({
             <div>
                 <h3 className="font-display text-secondary tracking-wide"
                     style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)' }}>
-                    Temperature Trends
+                    {title}
                 </h3>
                 <p className="text-secondary/50 text-xs mt-1">Typical-year averages by {seriesLabel}</p>
             </div>
@@ -120,7 +145,7 @@ const AllDestinationsTempChart = ({
                             axisLine={AXIS_LINE}
                             tickLine={AXIS_LINE}
                             label={{
-                                value: 'Avg temp (°C)',
+                                value: yAxisLabel,
                                 angle: -90,
                                 position: 'insideLeft',
                                 fill: 'rgba(0,0,0,0.5)',
@@ -149,8 +174,12 @@ const AllDestinationsTempChart = ({
                     </LineChart>
                 </ResponsiveContainer>
             </div>
+
+            {note && (
+                <p className="text-secondary/50 text-xs leading-relaxed border-t border-black/10 pt-4">{note}</p>
+            )}
         </div>
     )
 }
 
-export default AllDestinationsTempChart
+export default ClimateLineChart

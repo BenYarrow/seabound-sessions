@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { prepareClimateData, climateTempForMonth, type ClimateDataset } from '@/Helpers/climate'
+import { prepareClimateData, climateTempForMonth, climateRainyDaysForMonth, type ClimateDataset } from '@/Helpers/climate'
 
 describe('prepareClimateData', () => {
     const dataset: ClimateDataset = {
@@ -42,5 +42,24 @@ describe('climateTempForMonth', () => {
 
     it('returns null for a spot absent from the dataset entirely', () => {
         expect(climateTempForMonth(dataset, 'Brouwersdam', 'August')).toBeNull()
+    })
+})
+
+describe('climateRainyDaysForMonth', () => {
+    const dataset: ClimateDataset = {
+        Tarifa: [
+            { month: 'January', avgTemp: 14, ktsWind: 12, ktsGust: 18, mphWind: 14, mphGust: 21, kphWind: 22, kphGust: 33, rainMm: 90, rainyDays: 7.4 },
+            { month: 'February', avgTemp: 15, ktsWind: 12, ktsGust: 18, mphWind: 14, mphGust: 21, kphWind: 22, kphGust: 33, rainMm: null, rainyDays: null },
+        ],
+    }
+
+    it('returns the typical rainy-day count for a spot and month', () => {
+        expect(climateRainyDaysForMonth(dataset, 'Tarifa', 'January')).toBe(7.4)
+    })
+
+    it('returns null when rain has not been fetched, the month is absent, or the spot is unknown', () => {
+        expect(climateRainyDaysForMonth(dataset, 'Tarifa', 'February')).toBeNull()
+        expect(climateRainyDaysForMonth(dataset, 'Tarifa', 'March')).toBeNull()
+        expect(climateRainyDaysForMonth(dataset, 'Nowhere', 'January')).toBeNull()
     })
 })
