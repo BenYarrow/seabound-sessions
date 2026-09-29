@@ -282,7 +282,7 @@ All work happens within this repo (or one of its git worktrees). Do **not** read
 - **`BlockWrapper.tsx`** — section wrapper with configurable bg colour and padding
 
 ### Common
-- **`NavBar.tsx`** — logo, nav links (Home, About Us, Destinations, Blog, Contact), search toggle, mobile menu
+- **`NavBar.tsx`** — logo, nav links (Home, About, Destinations, Blog, Contact), search toggle, mobile menu
 - **`Footer.tsx`** — logo, contact info, social links (YouTube, Instagram)
 - **`Icon.tsx`** — FontAwesome wrapper: `<FontAwesomeIcon icon={icon} className={...} />`
 - **`Button.tsx`** — primary/outline variants
@@ -294,11 +294,14 @@ All work happens within this repo (or one of its git worktrees). Do **not** read
 - **`MastheadSlider.tsx`** — Swiper carousel masthead
 
 ### Map
-- **`DestinationsMap.tsx`** — Mapbox globe map with wind-icon markers, click popups, reset button (uses `react-map-gl/mapbox`)
+- **`DestinationsMap.tsx`** — Mapbox globe map with wind-icon markers, click popups, reset button, zoom bounds (min 1 / max 10) (uses `react-map-gl/mapbox`)
+- **`ClickToInteract.tsx`** — scroll guard wrapping both site maps: an overlay passes wheel/touch to the page until the map is clicked; mouse-leave or an outside tap re-locks it
+- **`mapTheme.ts`** — shared `MAP_STYLE` (`light-v11`) + `applyLightAtmosphere` fog `onLoad` handler, used by `DestinationsMap` and `SpotGuideMap` so every map matches
 
 ### Destinations
-- **`DestinationFilterBar.tsx`** — sticky top-of-page filter bar (Month / Group by continent·country·global / Spots / Unit / Min wind), URL-synced via `history.replaceState`; superseded `FilterDataset.tsx` (deleted)
+- **`DestinationFilterBar.tsx`** — sticky top-of-page filter bar (Month / Group by continent·country·global / Spots / Unit / Min wind / Min temp / **Reset**), URL-synced via `history.replaceState`; superseded `FilterDataset.tsx` (deleted)
 - **`SailableDaysChart.tsx`** — grouped bar chart, one series per selected spot, y = typical (coverage-normalised) sailable days per month, selected month marked
+- **`ChartHeading.tsx`** (`Components/Common/`) — the single title + subtitle style for every chart card (destinations + spot-guide stats); use it for any new chart
 - **`AllDestinationsWindChart.tsx`** — Recharts LineChart of the typical-year `climate` wind curve across destinations; unit is display-only (the filter bar is now the single unit control), gust/wind toggle is local chart state
 - **`ClimateLineChart.tsx`** — generic Recharts LineChart of one typical-year `climate` metric across destinations (renamed from `AllDestinationsTempChart`); rendered twice on `/destinations` — temperature (`avgTemp`) and wet days (`wetDays`)
 
@@ -461,9 +464,10 @@ Rewritten to match the Next.js design:
 - **`weatherDataHelpers.ts`** — *dead code*: zero importers since the charts moved to `climate.ts`. Slated for removal (see `docs/TODO.md`).
 - **`helpers.ts`** — `formatDate()`, `truncateText()`
 - **`sailableDays.ts`** — client-side sailable-days ranking: `unitToKts()`/`ktsToUnit()`/`snapToUnitOption()` (kts/mph/kph), `sailableDaysInMonth()` (coverage-normalised rate), `rankSpots()` (month-desc, peak-month → alphabetical tie-break, dataless spots kept at rank 0)
-- **`destinationFilters.ts`** — `parseFilters()`/`filtersToQuery()`: URL query-string round-trip for the destinations filter bar (`spots` serialised as **slugs**, not titles)
+- **`destinationFilters.ts`** — `parseFilters()`/`filtersToQuery()`: URL query-string round-trip for the destinations filter bar (`spots` serialised as **slugs**, not titles); `defaultFilters()`/`hasActiveFilters()` back the Reset button
+- **`chartGrouping.ts`** — `groupRankedSpots()`/`groupClimate()` roll the page-filtered spots up into country/continent series (mean of members; rain averaged over members that have it) for the "Compare by" chart control
 - **`sailableChartData.ts`** — `prepareSailableChartData()` pivots ranked spots into Recharts rows for `SailableDaysChart`
-- **`climate.ts`** — `prepareClimateData()` pivots the `climate` prop into Recharts rows for the wind/temp charts; exports `MONTH_NAMES`
+- **`climate.ts`** — `prepareClimateData()` pivots the `climate` prop into Recharts rows for the wind/temp/wet-days charts; `climateTempForMonth()`/`climateWetDaysForMonth()` card lookups; exports `MONTH_NAMES`
 - **`selectTypes.ts`** — shared `SelectOption` type (moved out of the now-deleted `FilterDataset.tsx`)
 
 ---
@@ -512,4 +516,5 @@ The `/destinations` page was rebuilt to match the Next.js design. Previously it 
 - **Mapbox:** `react-map-gl@8` must be imported as `react-map-gl/mapbox` (not `react-map-gl`) due to Vite 7's strict exports resolution. The token is shared via Inertia middleware (`usePage().props.mapboxToken`).
 - **Sailable-days ranking (`/destinations`) is a GUST+sustained BLEND.** A day counts as sailable at minimum `X` iff `qualifying_gust_kts ≥ X` **AND** `qualifying_wind_kts ≥ 0.6·X` (the `SUSTAINED_FLOOR_FRACTION` in `resources/js/Helpers/sailableDays.ts`). Gust is the primary signal because Open-Meteo's sustained 10m wind under-reads thermal/venturi spots (felt wind ≈ gusts); the sustained floor rejects gusty-but-not-steady days (winter frontal storm spikes) that pure-gust wrongly rewarded — it stopped e.g. spiky Karpathos (gust/sustained ≈ 2.1) outranking steady Langebaan (≈ 1.3) midwinter. The typical sailable-days figure is a **coverage-normalised rate** (`qualifying ÷ held × daysInMonth`, robust to the rolling 3-year window's partial boundary months), computed entirely **client-side** from the pooled `sailableDays` prop (per-day `gusts[]` + `winds[]`, index-aligned) — no per-keystroke round-trip. Filter state (month/group/spots/unit/**min-temp**) is URL-synced via `history.replaceState`, with spots serialised as slugs. **Temperature never affects the wind ranking itself** (a cold-but-windy month still ranks — imposing a warmth judgement would wrongly bury legitimate cold-water spots like Brouwersdam whose season IS winter); instead the selected-month typical air temp is shown on each card (`≈ 18 windy days · 11°C`) and an **opt-in Min. temp filter** (Any default / 10 / 15 / 20 / 25 °C, `TEMP_OPTIONS`) lets a warmth-seeker exclude spots below a threshold from cards + charts — `climateTempForMonth()` in `climate.ts`, temp from the `climate` payload's `avgTemp`. See `docs/history/2026-07-28-sailable-days-ranking.md` + `docs/history/2026-07-30-destinations-temperature-filter.md`.
   **The monthly `weather_records` layer is separate and has a different rule: it stores only COMPLETE calendar months.** The `/destinations` wind/temp charts average year-rows with equal weight, so a partial month would count as much as a full one — a 4-day stub once inflated Langebaan's typical July by ~8%. `WeatherFetcher` starts its window on a month boundary, skips the (always partial) current month, and *replaces* a spot's rows each fetch so stale rows that fell out of the rolling window self-heal. Do not "fix" this by having the charts read the daily table: `spot_sailable_days` stores the day's 2nd-highest hour, an order statistic, not a daily mean.
+- **Rainfall is display-only, like temperature — it never touches the wind ranking.** `weather_records.rain_mm` (whole-day monthly total) + `wet_days` (days with ≥ `WeatherFetcher::WET_DAY_SAILING_MM` = 3 mm falling 9am–7pm). The 3 mm in-window rule was picked from 3 years of hourly data across all spots; the 1 mm WMO rain day made the tropics look permanently wet (Le Morne ~24 "rain days" in January, much of it reanalysis drizzle). **Null = not fetched, never dry**: controllers average known years only, cards omit rain and charts hide until a spot is re-fetched. Charts count *wet* days (dry days bunch at 27–30 everywhere). See `docs/history/2026-09-29-feedback-round-rainfall.md`.
 - **Photographer credits flow through `imagePayload()`, not a separate prop.** `MediaLibrary::imagePayload()` gains a `credit` key (`{name, url}` or `null`), resolved from `photographer?->creditPayload()`; every one of the 45+ existing call sites inherits it with no edit. `CoverImage` renders it via `ImageCredit`; `MediaLibrary::$with = ['photographer']` batches the lookup so a page of cards issues one photographer query, not one per card (guarded by a scaling-invariant test, not a fixed query ceiling — see `docs/history/2026-08-06-photographer-attribution.md`).

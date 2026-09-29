@@ -6,7 +6,7 @@ completed: 2026-08-06
 commits: [2492772, f995b87, ffe2870, 089b443, e0f31e5, 4d37100, ea84ad1, e3d8dce, 66ae8c9, c66f8f6, 042a38c, 16e07f0, 0ad19f2, e646bb1, 36ec0bb, edfdb8c, 9d751e3, c56113e, 704748d, 14cf267, 433641a, ceabf8f, 21f7348, 8ccd48c, 1456e97, 78f07b7, bce51c7, 5dc28b3, b1e5784, 4435371]
 spec: docs/superpowers/specs/2026-08-06-photographer-attribution-design.md
 plan: docs/superpowers/plans/2026-08-06-photographer-attribution.md
-pr: photographer-attribution (branch)
+pr: 46
 ---
 
 # Photographer attribution

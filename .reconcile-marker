@@ -1,2 +1,2 @@
-date: 2026-08-07
-note: Reconcile 26 (folded into the photographer-attribution PR) — admin-managed photographer records now credit supplied imagery site-wide with a gated public profile page, built on a standalone auth-free table so a future login is additive, not a migration.
+date: 2026-09-29
+note: Reconcile 27 (folded into the feedback-round PR) — destinations filters/charts polish (reset, compare-by grouping, uniform headings), map click-to-explore guard, and rainfall as display-only wet days (3 mm+ in sailing hours, chosen from real data).
